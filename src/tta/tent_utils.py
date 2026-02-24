@@ -53,6 +53,8 @@ def get_tent_logits_imagenet_c(tented_model, distortion_name, severity, data_pat
     Performs Test-Time Adaptation (TTA) using TENT.
     Returns the logits produced during the adaptation process.
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tented_model = tented_model.to(device)
     # Setup data
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     preprocess = trn.Compose([trn.CenterCrop(224), trn.ToTensor(), trn.Normalize(mean, std)])
@@ -73,7 +75,7 @@ def get_tent_logits_imagenet_c(tented_model, distortion_name, severity, data_pat
     print(f"Starting TTA Adaptation for {distortion_name} (Severity {severity})...")
 
     for batch_idx, (data, target) in enumerate(loader):
-        data, target = data.cuda(), target.cuda()
+        data, target = data.to(device), target.to(device)
 
         # TENT forward pass:
         # 1. Calculates entropy of predictions

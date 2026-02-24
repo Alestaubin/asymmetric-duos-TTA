@@ -25,10 +25,9 @@ import torch.nn.functional as F
 from src.utils.load_utils import load_config
 from src.utils import metrics
 from src.calibration.temperature import jointly_calibrate_temperature, calibrate_temperature
-from src.models.inference import get_model_logits_imagenet_c
+from src.models.inference import get_model_logits_imagenetc
 from src.tta.tent_utils import get_tent_logits_imagenet_c
-from src.models.inference import get_model_logits_imagenet_c
-from src.tta.tent_utils import get_tent_logits_imagenet_c
+import argparse
 
 def main():
     parser = argparse.ArgumentParser(description='Asymmetric Duo Phase 2: Metrics Calculation')
@@ -39,12 +38,15 @@ def main():
     config = load_config(cmd_args.config)
     large_name = config['large_model']
     small_name = config['small_model']
-    distortions = config['distortions']
+    distortions = config['corruption']['distortions']
+    severities = config['corruption']['severity']
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # 2. Load Validation Logits & Calibrate
     print("--- Phase 2: Loading Calibration Data ---")
-    zl_val, labels_val = get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], split="val")
-    zs_val, _          = get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], split="val")
+    zl_val, labels_val = get_model_logits_imagenetc(large_name, "none", 0, config['val_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    zs_val, _          = get_model_logits_imagenetc(small_name, "none", 0, config['val_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="val")
 
     # Get Temperatures
     # Scalar (Independent)
@@ -58,10 +60,10 @@ def main():
     # 3. Process All Distortions
     print("--- Phase 2: Calculating Metrics for All Variants ---")
     for d_name in distortions:
-        for sev in range(1, 6):
+        for sev in severities:
             # Load cached logits
-            zl, labels = get_model_logits_imagenet_c(large_name, d_name, sev, config['data_path'])
-            zs, _      = get_model_logits_imagenet_c(small_name, d_name, sev, config['data_path'])
+            zl, labels = get_model_logits_imagenetc(large_name, d_name, sev, config['data_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="test")
+            zs, _      = get_model_logits_imagenetc(small_name, d_name, sev, config['data_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="test")
             # zt, _      = get_tent_logits_imagenet_c(large_name, d_name, sev, config['data_path'])
 
             # Define Variants to test
@@ -89,7 +91,7 @@ def main():
                     'nll': nll,
                     'ece': ece
                 })
-            
+
             print(f"Processed {d_name} Sev {sev}", end="\r")
 
     # 4. Save and Summarize

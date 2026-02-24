@@ -41,7 +41,7 @@ def jointly_calibrate_temperature(logits_l, logits_s, labels):
     print("=====Joint calibration complete and models wrapped.=====")
     return final_Tl,final_Ts
 
-def find_optimal_temperature(logits, labels, device):
+def calibrate_temperature(logits, labels, device):
     """
     Finds the temperature that minimizes NLL on clean validation data.
     """
