@@ -1,0 +1,3 @@
+[submodule "dependencies/tent"]
+	path = dependencies/tent
+	url = https://github.com/DequanWang/tent.git
