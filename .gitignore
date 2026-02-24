@@ -24,21 +24,11 @@ env/
 # sh files
 *.sh
 
-z-Data
-z-ray_results
 
 checkpoints
-# configs
-z-logs
-y-prediction
-evaluation/*.csv
-previous_results_tbd
-ray_results
 evaluation/
 logs
 datasets
-wandb
-evaluation/eval_res/*
-evaluation
+data
 slurm-scripts
 evaluation
