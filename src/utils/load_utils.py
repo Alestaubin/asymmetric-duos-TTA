@@ -5,6 +5,8 @@ from functools import wraps
 import inspect
 import hashlib
 from collections import Counter
+import copy
+
 
 DATA_DIR = Path("data/cache")
 PICKLES_DIR = DATA_DIR / "pickles"
@@ -55,3 +57,13 @@ def pickle_cache(cache_dir):
 
         return wrapper
     return decorator
+
+def get_model_state(model):
+    """Captures the current state of the model and its optimizer."""
+    # We use deepcopy to ensure we have a truly independent snapshot in RAM
+    return copy.deepcopy(model.state_dict())
+
+def reset_model(model, state_dict):
+    """Restores the model to a previous state."""
+    model.load_state_dict(state_dict)
+    print("Model state reset to clean source weights.")

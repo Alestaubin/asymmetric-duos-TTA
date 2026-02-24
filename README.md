@@ -23,3 +23,9 @@ asymmetric-duos-tta/
 ├── environment.yml         # Conda environment config
 └── main.py                 # Primary entry point for evaluations
 ```
+
+
+When this repository is cloned, `dependencies/tent` will be empty. You must run:
+```bash
+git submodule update --init --recursive
+```

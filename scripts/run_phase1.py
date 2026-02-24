@@ -12,7 +12,15 @@ from time import time
 
 from src.models.model_loader import get_model
 from src.utils import metrics
-from src.utils.load_utils import pickle_cache  # Your decorator
+from src.utils.load_utils import pickle_cache, get_model_state, reset_model
+from src.tta.tent_utils import run_tta_inference
+from src.calibration.temperature import jointly_calibrate_temperature
+
+'''
+NOTE: I think this script should instead be only saving the logits for all models (f_large, f_small, tent_f_large) across all distortions and severities.
+The actual metric calculations and CSV saving can be done in a separate script (run_phase2.py) that takes the logits as input.
+'''
+
 
 parser = argparse.ArgumentParser(description='Asymmetric Duo Phase 1: Robustness Evaluation')
 parser.add_argument('--large-model', '-L', type=str, required=True, help='e.g., convnext_base')
@@ -63,42 +71,6 @@ def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, spl
             
     return torch.cat(all_logits), torch.cat(all_labels)
 
-def jointly_calibrate_temperature(logits_l, logits_s, labels):
-    '''
-    Taken from https://github.com/timgzhou/asymmetric-duos/blob/main/evaluate/3_duo_temp_scale.py
-    '''
-    print("=====Joint temperature calibration in progress...=====")
-    best_nll = float("inf")
-    best_Tl, best_Ts = 1.0, 1.0
-
-    for Tl in torch.arange(0.05, 5.05, 0.2):
-        for Ts in torch.arange(0.05, 5.05, 0.2):
-            logits_avg = (logits_l / Tl + logits_s / Ts) / 2
-            nll = F.cross_entropy(logits_avg, labels).item()
-            if nll < best_nll:
-                best_nll = nll
-                best_Tl, best_Ts = Tl.item(), Ts.item()
-
-    print(f"Grid best Tl={best_Tl:.2f}, Ts={best_Ts:.2f}, NLL={best_nll:.4f}")
-
-    Tl = torch.tensor([best_Tl], requires_grad=True, device=logits_l.device)
-    Ts = torch.tensor([best_Ts], requires_grad=True, device=logits_s.device)
-    optimizer = torch.optim.LBFGS([Tl, Ts], lr=0.01, max_iter=50)
-
-    def closure():
-        optimizer.zero_grad()
-        logits_avg = (logits_l / Tl + logits_s / Ts) / 2
-        loss = F.cross_entropy(logits_avg, labels)
-        loss.backward()
-        return loss
-
-    optimizer.step(closure)
-    final_Tl, final_Ts = Tl.item(), Ts.item()
-    print(f"Refined Tl={final_Tl:.4f}, Ts={final_Ts:.4f}")
-    print(f"Final NLL = {F.cross_entropy((logits_l / Tl + logits_s / Ts)/2, labels).item():.4f}")
-
-    print("=====Joint calibration complete and models wrapped.=====")
-    return final_Tl,final_Ts
 # /////////////// Execution Pipeline ///////////////
 
 # 1. GET CALIBRATION TEMPERATURES (On Clean Val)
@@ -150,6 +122,38 @@ for d_name in distortions:
         })
 
 # 3. SAVE RESULTS
+df = pd.DataFrame(all_results)
+timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+filename = f"duo_{args.large_model}_{args.small_model}_{timestamp}.csv"
+df.to_csv(os.path.join(args.output_dir, filename), index=False)
+
+print("Running TENT")
+# 1. Initialize the TENT model once
+tented_model = get_model(args.large_model, tent_enabled=True)
+    
+# 2. Capture the "Clean" state before any adaptation begins
+clean_state = get_model_state(tented_model)
+
+for d_name in distortions:
+    # Before starting a new distortion, reset the model to the source state
+    reset_model(tented_model, clean_state)
+
+    for sev in range(1, 6):
+        print(f"Adapting and Evaluating: {d_name} | Severity: {sev}")
+        
+        # TENT inference (updates model parameters internally)
+        logits, labels = run_tta_inference(tented_model, d_name, sev, loader)
+        
+        # Calculate metrics for this specific TTA trajectory
+        err = 1.0 - (logits.max(1)[1].eq(labels).sum().item() / len(labels))
+        ece = metrics.ece(logits, labels)
+        
+        all_results.append({
+            'distortion': d_name, 'severity': sev,
+            'error_rate': err, 'ece': ece,
+            'Tl': Tl, 'Ts': Ts
+        })
+
 df = pd.DataFrame(all_results)
 timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 filename = f"duo_{args.large_model}_{args.small_model}_{timestamp}.csv"

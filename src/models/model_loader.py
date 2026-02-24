@@ -1,7 +1,15 @@
 import torch
 import torchvision.models as models
+import os
+import sys
 
-def get_model(model_name, freeze=True):
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../dependencies/tent'))
+try:
+    import tent
+except ImportError:
+    print("Warning: TENT repository not found in dependencies/. TTA features will be disabled.")
+
+def get_model(model_name, freeze=True, tent_enabled=False, lr=1e-3):
     """
     Dispatcher function to load models by name.
     """
@@ -14,6 +22,14 @@ def get_model(model_name, freeze=True):
     else:
         raise ValueError(f"Model {model_name} not recognized. Add it to load_models.py")
 
+    if tent_enabled:
+        print(f"Configuring {model_name} with TENT (TTA)...")
+        model = tent.configure_model(model)
+        params, param_names = tent.collect_params(model)
+        optimizer = torch.optim.Adam(params, lr=lr, betas=(0.9, 0.999))
+        tented_model = tent.Tent(model, optimizer)
+        return tented_model
+    
     if freeze:
         for param in model.parameters():
             param.requires_grad = False
