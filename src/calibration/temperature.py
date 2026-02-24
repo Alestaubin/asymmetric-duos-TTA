@@ -1,5 +1,7 @@
 import torch
 import torch.nn.functional as F
+import torch.optim as optim
+import torch.nn as nn
 
 
 def jointly_calibrate_temperature(logits_l, logits_s, labels):
@@ -39,6 +41,29 @@ def jointly_calibrate_temperature(logits_l, logits_s, labels):
     print("=====Joint calibration complete and models wrapped.=====")
     return final_Tl,final_Ts
 
+def find_optimal_temperature(logits, labels, device):
+    """
+    Finds the temperature that minimizes NLL on clean validation data.
+    """
+    print("Starting temperature calibration...")    
+
+    # Optimization loop for T
+    temperature = nn.Parameter(torch.ones(1, device=device) * 1.5) # Start guess at 1.5
+    optimizer = optim.LBFGS([temperature], lr=0.01, max_iter=50)
+    nll_criterion = nn.CrossEntropyLoss()
+
+    def closure():
+        optimizer.zero_grad()
+        # Scale logits by current T
+        loss = nll_criterion(logits / temperature, labels)
+        loss.backward()
+        return loss
+
+    optimizer.step(closure)
+    
+    optimal_T = temperature.item()
+    print(f"Calibration complete. Optimal Temperature T={optimal_T:.4f}")
+    return optimal_T
 
 class JointPTS(torch.nn.Module):
     def __init__(self, model_l, model_s, Tl, Ts):

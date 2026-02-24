@@ -8,7 +8,8 @@ import numpy as np
 from src.models.model_loader import get_model
 from src.utils.load_utils import pickle_cache
 
-BATCH=128, WORKERS=8
+BATCH=128
+WORKERS=4
 
 @pickle_cache("logits_cache")
 def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, split="test"):
@@ -22,7 +23,7 @@ def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, spl
         net = net.cuda()
         net = torch.nn.DataParallel(net)
     net.eval()
-
+    
     # Setup data
     mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     preprocess = trn.Compose([trn.CenterCrop(224), trn.ToTensor(), trn.Normalize(mean, std)])

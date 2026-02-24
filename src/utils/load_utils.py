@@ -6,6 +6,7 @@ import inspect
 import hashlib
 from collections import Counter
 import copy
+import yaml
 
 
 DATA_DIR = Path("data/cache")
@@ -67,3 +68,14 @@ def reset_model(model, state_dict):
     """Restores the model to a previous state."""
     model.load_state_dict(state_dict)
     print("Model state reset to clean source weights.")
+
+def load_config(config_file_path):
+    with open(config_file_path, 'r') as stream:
+        try:
+            # Use safe_load for security when dealing with untrusted sources
+            config_data = yaml.safe_load(stream)
+            return config_data
+        except yaml.YAMLError as exc:
+            # Handle potential YAML parsing errors
+            print(exc)
+            return None

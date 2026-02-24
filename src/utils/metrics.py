@@ -7,15 +7,18 @@ import torch
 import numpy as np
 
 def ece(probs, labels, num_bins=15):
-    """Expected calibration error"""
+    """
+    Expected calibration error
+
+    probs: np.array of shape (num_samples, num_classes) - predicted probabilities
+    labels: np.array of shape (num_samples). labels[i] denotes the label of the i-th
+            example
+    num_bins: int - number of bins to use for ECE calculation
+    """
     ece = cal.get_ece(probs, labels, num_bins=num_bins)
     #[lower, ece, upper] = cal.get_top_calibration_error(probs, labels, p=1)
     # when p=1, mid is the ECE
     return ece
-
-def brier(probs, labels):
-    assert np.shape(probs)==np.shape(labels), "shapes of probs and labels need to be equal!"
-    return np.mean(np.sum((probs - labels)**2, axis=1))
 
 def nll(probs, labels):
     assert np.shape(probs)==np.shape(labels), "shapes of probs and labels need to be equal!"

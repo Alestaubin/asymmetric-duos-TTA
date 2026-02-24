@@ -1,0 +1,31 @@
+# cfgs/save_logits.yaml
+large_model: "convnext_base"
+small_model: "resnet50"
+data_path: "./data/imagenet-c"
+val_path: "./data/imagenet/val"
+batch_size: 128
+workers: 4
+corruption:
+  dataset: "imagenet_c"
+  severity:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  distortions:
+    - 'gaussian_noise'
+    - 'shot_noise'
+    - 'impulse_noise'
+    - 'defocus_blur'
+    - 'glass_blur'
+    - 'motion_blur'
+    - 'zoom_blur'
+    - 'snow'
+    - 'frost'
+    - 'fog'
+    - 'brightness'
+    - 'contrast'
+    - 'elastic_transform'
+    - 'pixelate'
+    - 'jpeg_compression'
