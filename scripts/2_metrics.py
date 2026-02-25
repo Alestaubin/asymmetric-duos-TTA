@@ -44,26 +44,27 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # 2. Load Validation Logits & Calibrate
-    print("--- Phase 2: Loading Calibration Data ---")
-    zl_val, labels_val = get_model_logits_imagenetc(large_name, "none", 0, config['val_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="val")
-    zs_val, _          = get_model_logits_imagenetc(small_name, "none", 0, config['val_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    print("--- Loading Calibration Data ---")
+    zl_val, labels_val = get_model_logits_imagenetc(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    zs_val, _          = get_model_logits_imagenetc(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
 
     # Get Temperatures
     # Scalar (Independent)
-    t_large_fixed = calibrate_temperature(zl_val, labels_val)
-    t_small_fixed = calibrate_temperature(zs_val, labels_val)
+    t_large_fixed = calibrate_temperature(zl_val, labels_val, device)
+    t_small_fixed = calibrate_temperature(zs_val, labels_val, device)
     # Joint (Duo)
     Tl_joint, Ts_joint = jointly_calibrate_temperature(zl_val, zs_val, labels_val)
 
     all_results = []
 
     # 3. Process All Distortions
-    print("--- Phase 2: Calculating Metrics for All Variants ---")
+    print("---Calculating Metrics for All Variants ---")
     for d_name in distortions:
         for sev in severities:
+            print(f"Processing Distortion: {d_name} | Severity: {sev}...", end="\r")
             # Load cached logits
-            zl, labels = get_model_logits_imagenetc(large_name, d_name, sev, config['data_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="test")
-            zs, _      = get_model_logits_imagenetc(small_name, d_name, sev, config['data_path'], device=device, batch_size=config['batch_size'], num_workers=config['workers'], split="test")
+            zl, labels = get_model_logits_imagenetc(large_name, d_name, sev, config['data_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="test")
+            zs, _      = get_model_logits_imagenetc(small_name, d_name, sev, config['data_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="test")
             # zt, _      = get_tent_logits_imagenet_c(large_name, d_name, sev, config['data_path'])
 
             # Define Variants to test

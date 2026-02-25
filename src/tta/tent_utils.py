@@ -2,6 +2,10 @@ import torch
 import dependencies.tent.tent as tent
 from src.utils.load_utils import pickle_cache
 import torch.optim as optim
+import torchvision.transforms as trn
+import torchvision.datasets as dset
+import os
+import torch.nn as nn
 
 def setup_tent(model, cfg):
     """Set up tent adaptation.
@@ -10,16 +14,56 @@ def setup_tent(model, cfg):
     collect the parameters for feature modulation by gradient optimization,
     set up the optimizer, and then tent the model.
     """
-    model = tent.configure_model(model)
-    params, param_names = tent.collect_params(model)
+
+    # 1. Disable all grads first
+    model.requires_grad_(False)
+    
+    # 2. Enable grads for normalization layers (BN for ResNet, LN for ConvNeXt)
+    # This replaces tent.configure_model(model) logic to be more inclusive
+    for m in model.modules():
+        if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+            m.requires_grad_(True)
+            # Force buffers (like running mean/var) to update even in eval mode if needed
+            m.track_running_stats = True 
+            
+    # 3. Collect only those enabled params
+    params = []
+    param_names = []
+    for nm, p in model.named_parameters():
+        if p.requires_grad:
+            params.append(p)
+            param_names.append(nm)
+    
+    if not params:
+        raise ValueError("No parameters found for adaptation. Check if model has Norm layers.")
+
     optimizer = setup_optimizer(params, cfg)
+    
+    # 4. Wrap in TENT
     tent_model = tent.Tent(model, optimizer,
-                           steps=cfg.OPTIM.STEPS,
+                           steps=int(cfg.OPTIM.STEPS),
                            episodic=cfg.MODEL.EPISODIC)
-    print(f"model for adaptation: {model}")
-    print(f"params for adaptation: {param_names}")
-    print(f"optimizer for adaptation: {optimizer}")
+    
+    print(f"Params for adaptation (found {len(params)}): {param_names[:5]}...") 
     return tent_model
+
+# def setup_tent(model, cfg):
+#     """Set up tent adaptation.
+
+#     Configure the model for training + feature modulation by batch statistics,
+#     collect the parameters for feature modulation by gradient optimization,
+#     set up the optimizer, and then tent the model.
+#     """
+#     model = tent.configure_model(model)
+#     params, param_names = tent.collect_params(model)
+#     optimizer = setup_optimizer(params, cfg)
+#     tent_model = tent.Tent(model, optimizer,
+#                            steps=int(cfg.OPTIM.STEPS),
+#                            episodic=cfg.MODEL.EPISODIC)
+#     print(f"model for adaptation: {model}")
+#     print(f"params for adaptation: {param_names}")
+#     print(f"optimizer for adaptation: {optimizer}")
+#     return tent_model
 
 def setup_optimizer(params, cfg):
     """Set up optimizer for tent adaptation.
@@ -34,9 +78,9 @@ def setup_optimizer(params, cfg):
     """
     if cfg.OPTIM.METHOD == 'Adam':
         return optim.Adam(params,
-                    lr=cfg.OPTIM.LR,
-                    betas=(cfg.OPTIM.BETA, 0.999),
-                    weight_decay=cfg.OPTIM.WD)
+                    lr=float(cfg.OPTIM.LR),
+                    betas=(float(cfg.OPTIM.BETA), 0.999),
+                    weight_decay=float(cfg.OPTIM.WD))
     elif cfg.OPTIM.METHOD == 'SGD':
         return optim.SGD(params,
                    lr=cfg.OPTIM.LR,

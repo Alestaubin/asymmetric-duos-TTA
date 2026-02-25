@@ -33,22 +33,22 @@ cfg = DotMap(cfg)
 # ---------------------------------------------------------
 # STEP 1: STATIC LOGIT EXTRACTION (f_large, f_small)
 # ---------------------------------------------------------
-print("\n--- Step 1: Extracting Static Logits (Source & ImageNet-C) ---")
+# print("\n--- Step 1: Extracting Static Logits (Source & ImageNet-C) ---")
 
-for model_name in [cfg.large_model, cfg.small_model]:
-    print(f"\nProcessing Backbone: {model_name}")
+# for model_name in [cfg.large_model, cfg.small_model]:
+#     print(f"\nProcessing Backbone: {model_name}")
     
-    # Extract Clean Validation Logits (for calibration later)
-    print(f"  Extracting Clean Val Logits...")
-    _ = get_model_logits_imagenetc(model_name, "none", 0, cfg.val_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="val")
+#     # Extract Clean Validation Logits (for calibration later)
+#     print(f"  Extracting Clean Val Logits...")
+#     _ = get_model_logits_imagenetc(model_name, "none", 0, cfg.val_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="val")
 
-    # Extract ImageNet-C Logits
-    for d_name in cfg.corruption.distortions:
-        for sev in cfg.corruption.severity:
-            print(f"  Extracting: {d_name} | Severity {sev}...", end="\r")
-            # The @pickle_cache inside this function handles the saving logic
-            _ = get_model_logits_imagenetc(model_name, d_name, sev, cfg.data_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="test")
-print("\nStatic logit extraction complete.")
+#     # Extract ImageNet-C Logits
+#     for d_name in cfg.corruption.distortions:
+#         for sev in cfg.corruption.severity:
+#             print(f"  Extracting: {d_name} | Severity {sev}...", end="\r")
+#             # The @pickle_cache inside this function handles the saving logic
+#             _ = get_model_logits_imagenetc(model_name, d_name, sev, cfg.data_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="test")
+# print("\nStatic logit extraction complete.")
 
 # ---------------------------------------------------------
 # STEP 2: ADAPTIVE LOGIT EXTRACTION (TENT f_large)
@@ -56,6 +56,7 @@ print("\nStatic logit extraction complete.")
 print("\n--- Step 2: Extracting Adaptive Logits (TENT) ---")
 
 tent_cfg = load_config("cfgs/tent.yaml")
+tent_cfg = DotMap(tent_cfg)
 # 1. Initialize the TENT model once
 tented_model = get_model(cfg.large_model, freeze = False, tent_enabled=True, cfg=tent_cfg)
 
