@@ -22,13 +22,15 @@ import os
 import pandas as pd
 import torch
 import torch.nn.functional as F
+import argparse
+from dotmap import DotMap 
+
 from src.utils.load_utils import load_config
 from src.utils import metrics
 from src.calibration.temperature import jointly_calibrate_temperature, calibrate_temperature
 from src.models.inference import get_model_logits_imagenetc
 from src.tta.tent_utils import get_tent_logits_imagenet_c
 from src.utils.log_utils import log_event
-import argparse
 
 
 def main():
@@ -61,16 +63,24 @@ def main():
     Tl_joint, Ts_joint = jointly_calibrate_temperature(zl_val, zs_val, labels_val)
 
     all_results = []
-
+    severities = config['corruption']['severity']
     # 3. Process All Distortions
     log_event("---Calculating Metrics for All Variants ---")
     for d_name in distortions:
+
+        logits_dict, labels_dict = get_tent_logits_imagenet_c(
+            model_name=large_name, 
+            distortion_name=d_name, 
+            severities=severities, 
+            data_path=config['data_path'], 
+            tent_cfg=tent_cfg
+        )
         for sev in severities:
-            log_event(f"Processing Distortion: {d_name} | Severity: {sev}...", end="\r")
+            log_event(f"Processing Distortion: {d_name} | Severity: {sev}...")
             # Load cached logits
             zl, labels = get_model_logits_imagenetc(large_name, d_name, sev, config['data_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="test")
             zs, _      = get_model_logits_imagenetc(small_name, d_name, sev, config['data_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="test")
-            zt, _      = get_tent_logits_imagenet_c(large_name, d_name, sev, config['data_path'], tent_cfg)
+            zt, _      = logits_dict[sev], labels_dict[sev]
 
             # Define Variants to test
             variants = {
@@ -98,7 +108,7 @@ def main():
                     'ece': ece
                 })
 
-            log_event(f"Processed {d_name} Sev {sev}", end="\r")
+            log_event(f"Processed {d_name} Sev {sev}")
 
     # 4. Save and Summarize
     df = pd.DataFrame(all_results)
