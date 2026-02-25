@@ -1,26 +1,27 @@
 # Dynamic Duos for Duos that update
+A short project that extends Asymmetric Duos by making them more robust to distribution shifts through parametrized temperature scaling and test-time adaptation
 
-Directory structure: 
+## Directory structure
 ```
 asymmetric-duos-tta/
-├── data/                   # (Symlinked to cluster storage)
-│   ├── imagenet/           # Clean ImageNet-Val
-│   └── imagenet-c/         # 15 corruptions x 5 severities
-├── checkpoints/            # Pre-trained backbones (ViT, ResNet, SatMAE)
-├── results/                # Output of experiments (Google Doc data)
+├── data/                   # (Symlinked)
+│   ├── imagenet/           
+│   └── imagenet-c/         
+├── checkpoints/            # Pre-trained backbones 
+├── results/                # Output of experiments 
 │   ├── phase1_baselines/   # CSVs with Top-1 and ECE
 │   ├── phase2_entropy/     # JSONs of entropy distributions
 │   └── plots/              # Reliability diagrams and Histograms
-├── src/                    # The "Engine"
+├── src/                    
 │   ├── models/             # Model architectures and Duo wrapper
-│   ├── calibration/        # JointPTSHead and L-BFGS logic
-│   ├── tta/                # TENT and EATA adaptation loops
+│   ├── calibration/        # Temperature scaling stuff
+│   ├── tta/                # TENT adaptation 
 │   └── utils/              # ECE calculator, ImageNet-C loader
-├── scripts/                # The "Drivers"
-│   ├── run_phase1.py       # Script for ImageNet-C baseline
-│   ├── run_phase3_pts.py   # Training script for PTS head
-│   └── run_tta_sweep.sh    # Bash script to loop over corruptions
-├── environment.yml         # Conda environment config
+├── scripts/                
+│   ├── 1_save_logits.py    # save the logits of all models on ImageNet-C
+│   ├── 2_metrics.py        # Compute metrics for all model configurations from the saved logits
+│   └── 3_TODO.py
+├── requirements.txt
 └── main.py                 # Primary entry point for evaluations
 ```
 
