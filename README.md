@@ -5,8 +5,8 @@ A short project that extends Asymmetric Duos by making them more robust to distr
 ```
 asymmetric-duos-tta/
 ├── data/                   # (Symlinked)
-│   ├── imagenet/           
-│   └── imagenet-c/      
+│   ├── imagenet/
+│   └── imagenet-c/
 ├── dependencies/   
 │   └── tent/               # repository from the paper TENT
 ├── checkpoints/            # Pre-trained backbones 
