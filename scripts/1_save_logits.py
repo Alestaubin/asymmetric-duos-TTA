@@ -58,22 +58,39 @@ print("\n--- Step 2: Extracting Adaptive Logits (TENT) ---")
 tent_cfg = load_config("cfgs/tent.yaml")
 tent_cfg = DotMap(tent_cfg)
 # 1. Initialize the TENT model once
-tented_model = get_model(cfg.large_model, freeze = False, tent_enabled=True, cfg=tent_cfg)
+# tented_model = get_model(cfg.large_model, freeze = False, tent_enabled=True, cfg=tent_cfg)
+
+# for d_name in cfg.corruption.distortions:
+#     # Before starting a new distortion, reset the model to the source state
+#     try:
+#         tented_model.reset()
+#         logger.info("resetting model")
+#     except:
+#         logger.warning("not resetting model")
+
+#     for sev in cfg.corruption.severity:
+#         print(f"Adapting and Evaluating: {d_name} | Severity: {sev}")
+#         timer_start = time()
+#         # TENT inference (updates model parameters internally)
+#         logits, labels = get_tent_logits_imagenet_c(tented_model, d_name, sev, cfg.data_path, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="test")
+#         print(f"  TTA Logits obtained in {time() - timer_start:.2f}s")
+
+
+target_severities = cfg.corruption.severity  # e.g., [1, 2, 3, 4, 5]
 
 for d_name in cfg.corruption.distortions:
-    # Before starting a new distortion, reset the model to the source state
-    try:
-        tented_model.reset()
-        logger.info("resetting model")
-    except:
-        logger.warning("not resetting model")
-
-    for sev in cfg.corruption.severity:
-        print(f"Adapting and Evaluating: {d_name} | Severity: {sev}")
-        timer_start = time()
-        # TENT inference (updates model parameters internally)
-        logits, labels = get_tent_logits_imagenet_c(tented_model, d_name, sev, cfg.data_path, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="test")
-        print(f"  TTA Logits obtained in {time() - timer_start:.2f}s")
+    print(f"\nProcessing Distortion: {d_name}")
+    timer_start = time()
+    
+    logits_dict, labels_dict = get_tent_logits_imagenet_c(
+        model_name=cfg.large_model, 
+        distortion_name=d_name, 
+        severities=target_severities, 
+        data_path=cfg.data_path, 
+        tent_cfg=tent_cfg
+    )
+    
+    print(f"Trajectory for {d_name} (Severities {target_severities}) obtained in {time() - timer_start:.2f}s")
 
 print("\n--- Phase 1 Logit Extraction Complete ---")
 print(f"All logits are cached in the 'pickles/logits_cache' directory.")

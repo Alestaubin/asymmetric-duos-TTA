@@ -91,51 +91,60 @@ def setup_optimizer(params, cfg):
     else:
         raise NotImplementedError
 
-@pickle_cache("tent_logits_cache")
-def get_tent_logits_imagenet_c(tented_model, distortion_name, severity, data_path, batch_size, num_workers, split="test"):
+@pickle_cache("tent_logits_trajectory_cache")
+def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_path, tent_cfg):
     """
-    Performs Test-Time Adaptation (TTA) using TENT.
-    Returns the logits produced during the adaptation process.
+    Caches the adaptation trajectory for a SPECIFIC list of severities.
+    Preserves model weights across the sequence for continual adaptation.
     """
+    from src.models.model_loader import get_model
+    import torchvision.datasets as dset
+    import torchvision.transforms as trn
+    
+    # Setup Model (Loaded once per distortion trajectory)
+    tented_model = get_model(model_name, freeze = False, tent_enabled=True, cfg=tent_cfg)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tented_model = tented_model.to(device)
-    # Setup data
-    mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    preprocess = trn.Compose([trn.CenterCrop(224), trn.ToTensor(), trn.Normalize(mean, std)])
-    
-    if split == "val":
-        root_path = data_path # Assumes path to clean val images
-    else:
-        root_path = os.path.join(data_path, distortion_name, str(severity))
+    tented_model.eval()
+
+    trajectory_logits = {}
+    trajectory_labels = {}
+
+    preprocess = trn.Compose([
+        trn.CenterCrop(224), 
+        trn.ToTensor(), 
+        trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    # Iterate only through the requested severities
+    for sev in severities:
+        print(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
         
-    dataset = dset.ImageFolder(root=root_path, transform=preprocess)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
-                                         num_workers=num_workers, pin_memory=True)
+        root_path = os.path.join(data_path, distortion_name, str(sev))
+        if not os.path.exists(root_path):
+            print(f"Warning: Path {root_path} not found. Skipping.")
+            continue
 
-    tented_model.eval()  # Note: TENT uses model.train() internally for BN updates
-    all_logits = []
-    all_labels = []
+        dataset = dset.ImageFolder(root=root_path, transform=preprocess)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=tent_cfg.TEST.BATCH_SIZE, 
+            num_workers=tent_cfg.TEST.WORKERS, pin_memory=True
+        )
 
-    print(f"Starting TTA Adaptation for {distortion_name} (Severity {severity})...")
+        sev_logits = []
+        sev_labels = []
 
-    for batch_idx, (data, target) in enumerate(loader):
-        data, target = data.to(device), target.to(device)
+        # TENT adapts by looking at batches sequentially
+        for data, target in loader:
+            data, target = data.to(device), target.to(device)
+            
+            with torch.enable_grad():
+                logits = tented_model(data)
+            
+            sev_logits.append(logits.detach().cpu())
+            sev_labels.append(target.cpu())
 
-        # TENT forward pass:
-        # 1. Calculates entropy of predictions
-        # 2. Performs backward pass on BN parameters
-        # 3. Returns the logits for the current batch
-        with torch.enable_grad():  # TENT requires grads to update BN params
-            logits = tented_model(data)
-        
-        # We store the logits produced *during* adaptation to see 
-        # how the model performs "on-the-fly".
-        all_logits.append(logits.detach().cpu())
-        all_labels.append(target.cpu())
+        trajectory_logits[sev] = torch.cat(sev_logits)
+        trajectory_labels[sev] = torch.cat(sev_labels)
 
-        if batch_idx % 10 == 0:
-            acc = (logits.detach().max(1)[1] == target).float().mean().item()
-            print(f"Batch {batch_idx:03d} | Batch Acc: {acc:.2f}", end="\r")
-
-    print("\nAdaptation for current severity complete.")
-    return torch.cat(all_logits), torch.cat(all_labels)
+    return trajectory_logits, trajectory_labels
