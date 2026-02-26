@@ -6,7 +6,7 @@ from time import time
 from src.models.model_loader import get_model
 from src.utils.load_utils import pickle_cache, get_model_state, reset_model
 from src.tta.tent_utils import get_tent_logits_imagenet_c
-from src.models.inference import get_model_logits_imagenetc
+from src.models.inference import get_model_logits_imagenet_c
 from src.utils.load_utils import load_config
 import logging
 from dotmap import DotMap 
@@ -39,14 +39,14 @@ if not cmd_args.tent:
     
     # Extract Clean Validation Logits (for calibration later)
     print(f"  Extracting Clean Val Logits...")
-    _ = get_model_logits_imagenetc(model_name, "none", 0, cfg.val_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="val")
+    _ = get_model_logits_imagenet_c(model_name, "none", 0, cfg.val_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="val")
 
     # Extract ImageNet-C Logits
     for d_name in cfg.corruption.distortions:
         for sev in cfg.corruption.severity:
             print(f"  Extracting: {d_name} | Severity {sev}...", end="\r")
             # The @pickle_cache inside this function handles the saving logic
-            _ = get_model_logits_imagenetc(model_name, d_name, sev, cfg.data_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="test")
+            _ = get_model_logits_imagenet_c(model_name, d_name, sev, cfg.data_path, batch_size=cfg.batch_size, num_workers=cfg.workers, split="test")
     print("\nStatic logit extraction complete.")
 elif cmd_args.tent:
     print("\n---  Extracting Adaptive Logits (TENT) ---")

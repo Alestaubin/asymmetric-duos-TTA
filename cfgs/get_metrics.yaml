@@ -1,7 +1,8 @@
-small_model: "resnet18"
+small_model: "resnet50"
 large_model: "convnext_base"
 data_path: "./data/imagenet-c"
 val_path: "./data/imagenet/val"
+test_path: "./data/imagenet/validation"
 batch_size: 128
 workers: 8
 corruption:

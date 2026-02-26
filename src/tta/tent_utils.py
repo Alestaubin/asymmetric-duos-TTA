@@ -6,7 +6,7 @@ import torchvision.transforms as trn
 import torchvision.datasets as dset
 import os
 import torch.nn as nn
-from src.models.inference import get_model_logits_imagenetc
+# from src.models.inference import get_model_logits_imagenet_c
 
 
 def setup_tent(model, cfg):
@@ -104,20 +104,23 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
     import torchvision.datasets as dset
     import torchvision.transforms as trn
     assert ts in [None, "pts", 'naive']
+    from src.models.inference import get_model_logits_imagenet_c
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Setup Model (Loaded once per distortion trajectory)
     tented_model = get_model(model_name, freeze = False, tent_enabled=True, cfg=tent_cfg)
-    
     if ts == "pts":
         raise NotImplementedError("PTS temperature scaling not yet implemented for TENT. Please set ts=None or ts='naive'.")
     elif ts == "naive":
         print("Applying Naive Temperature Scaling to TENT model...")
+        from src.calibration.temperature import TemperatureWrapper
         # get the temperature using the clean validation set
         from src.calibration.temperature import calibrate_temperature
         # Load clean validation logits for this model
-        zl_val, labels_val = get_model_logits_imagenetc(model_name, "none", 0, tent_cfg.VAL_PATH, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="val")
-        optimal_T = calibrate_temperature(zl_val, labels_val, device=tented_model.device)
-        tented_model = TemperatureWrapper(tented_model, initial_T=optimal_T)
+        zl_val, labels_val = get_model_logits_imagenet_c(model_name, "none", 0, tent_cfg.VAL_PATH, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="val")
+        optimal_T = calibrate_temperature(zl_val, labels_val, device=device)
+        tented_model = TemperatureWrapper(tented_model, temperature=optimal_T)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tented_model = tented_model.to(device)
@@ -136,7 +139,11 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
     for sev in severities:
         print(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
         
-        root_path = os.path.join(data_path, distortion_name, str(sev))
+        if distortion_name == "none" and sev == 0:
+            root_path = data_path # Assumes path to clean val images
+        else:
+            root_path = os.path.join(data_path, distortion_name, str(sev))
+        
         if not os.path.exists(root_path):
             print(f"Warning: Path {root_path} not found. Skipping.")
             continue

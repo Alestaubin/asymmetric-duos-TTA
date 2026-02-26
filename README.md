@@ -1,6 +1,11 @@
 # Dynamic Duos for Duos that update
 A short project that extends Asymmetric Duos by making them more robust to distribution shifts through parametrized temperature scaling and test-time adaptation
 
+Currently exploring the following models:
+- `Convnext-b`, 15.36 GFlops
+- `ResNet50`, 4.09 GFlops
+- `ResNet18`, 1.81 GFlops
+
 ## Directory structure
 ```
 asymmetric-duos-tta/
@@ -32,3 +37,4 @@ When this repository is cloned, `dependencies/tent` will be empty. You must run:
 ```bash
 git submodule update --init --recursive
 ```
+
