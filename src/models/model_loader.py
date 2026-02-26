@@ -44,6 +44,7 @@ def load_resnet50():
     model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
     model.eval() # Set to evaluation mode for calibration/TTA
     return model
+
 def load_resnet18():
     """
     Loads ResNet-18 pretrained on ImageNet-1K.
