@@ -16,7 +16,6 @@ from src.utils.log_utils import log_event
 def save_result_to_csv(result_dict, output_path):
     """Appends a single result row to the CSV. Creates file/header if it doesn't exist."""
     df = pd.DataFrame([result_dict])
-    # header=True only if the file doesn't exist yet
     df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
 
 def main():
@@ -60,16 +59,21 @@ def main():
         small_name, "none", 0, config['test_path'], 
         batch_size=config['batch_size'], num_workers=config['workers'], split="test"
     )
-    # TTA Trajectory for 'none' usually just severity 0
+    
     zt_clean_dict, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], tent_cfg
+        large_name, "none", [0], config['test_path'], tent_cfg, ts=None
     )
     zt_clean = zt_clean_dict[0]
 
+    zt_clean_dict_ts, _ = get_tent_logits_imagenet_c(
+        large_name, "none", [0], config['test_path'], tent_cfg, ts="naive"
+    )
+    zt_clean_ts = zt_clean_dict_ts[0]
+    
     variants_clean = {
         "f_large": zl_clean, "f_small": zs_clean, "tent_f_large": zt_clean,
         "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
-        "tent_f_large_TS": zt_clean / t_large_fixed,
+        "tent_f_large_TS_naive": zt_clean_ts / t_large_fixed,
         "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2
     }
 
@@ -78,7 +82,16 @@ def main():
         nll = F.cross_entropy(logits, labels_clean).item()
         ece = metrics.ece(logits, labels_clean)
         
-        res = {'distortion': 'none', 'severity': 0, 'variant': name, 'accuracy': acc, 'nll': nll, 'ece': ece}
+        res = {
+            'large_model': large_name,
+            'small_model': small_name,
+            'distortion': 'none', 
+            'severity': 0, 
+            'variant': name, 
+            'accuracy': acc, 
+            'nll': nll, 
+            'ece': ece
+        }
         save_result_to_csv(res, output_path)
 
     # ---------------------------------------------------------
@@ -88,23 +101,25 @@ def main():
     for d_name in distortions:
         log_event(f"Distortion: {d_name}")
         
-        # Load the whole TENT trajectory once to hit the cache
-        logits_dict, _ = get_tent_logits_imagenet_c(
+        tent_logits_dict, _ = get_tent_logits_imagenet_c(
             large_name, d_name, severities, config['data_path'], tent_cfg
+        )
+        tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
+            large_name, d_name, severities, config['data_path'], tent_cfg, ts="naive"
         )
 
         for sev in severities:
-            # Load static logits
             zl, labels = get_model_logits_imagenet_c(large_name, d_name, sev, config['data_path'], 
                                                    batch_size=config['batch_size'], num_workers=config['workers'])
             zs, _      = get_model_logits_imagenet_c(small_name, d_name, sev, config['data_path'], 
                                                    batch_size=config['batch_size'], num_workers=config['workers'])
-            zt = logits_dict[sev]
+            zt = tent_logits_dict[sev]
+            zt_ts = tent_logits_dict_ts[sev]
 
             variants = {
                 "f_large": zl, "f_small": zs, "tent_f_large": zt,
                 "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
-                "tent_f_large_TS": zt / t_large_fixed,
+                "tent_f_large_TS_naive": zt_ts,
                 "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2
             }
 
@@ -113,7 +128,16 @@ def main():
                 nll = F.cross_entropy(logits, labels).item()
                 ece = metrics.ece(logits, labels)
                 
-                res = {'distortion': d_name, 'severity': sev, 'variant': name, 'accuracy': acc, 'nll': nll, 'ece': ece}
+                res = {
+                    'large_model': large_name,
+                    'small_model': small_name,
+                    'distortion': d_name, 
+                    'severity': sev, 
+                    'variant': name, 
+                    'accuracy': acc, 
+                    'nll': nll, 
+                    'ece': ece
+                }
                 save_result_to_csv(res, output_path)
             
             log_event(f"  Sev {sev} Saved. Duo Acc: {res['accuracy']:.4f}")
