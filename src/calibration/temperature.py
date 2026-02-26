@@ -86,3 +86,19 @@ class JointPTS(torch.nn.Module):
         logits_l = self.model_l(x) / self.Tl
         logits_s = self.model_s(x) / self.Ts
         return (logits_l + logits_s) / 2
+
+
+class TemperatureWrapper(nn.Module):
+    """
+    Wraps a model to scale logits by a fixed temperature T.
+    Formula: logits / T
+    """
+    def __init__(self, model, temperature=1.0):
+        super().__init__()
+        self.model = model
+        # register buffer so it saves with state_dict but isn't a trainable param
+        self.register_buffer("temperature", torch.tensor(temperature))
+
+    def forward(self, x):
+        logits = self.model(x)
+        return logits / self.temperature

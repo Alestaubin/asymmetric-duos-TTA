@@ -20,6 +20,8 @@ def get_model(model_name, freeze=True, tent_enabled=False, cfg=None):
         model = load_resnet50()
     elif "convnext_base" in model_name:
         model = load_convnext_base()
+    elif "resnet18" in model_name:
+        model = load_resnet18()
     else:
         raise ValueError(f"Model {model_name} not recognized. Add it to load_models.py")
 
@@ -42,7 +44,15 @@ def load_resnet50():
     model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
     model.eval() # Set to evaluation mode for calibration/TTA
     return model
-
+def load_resnet18():
+    """
+    Loads ResNet-18 pretrained on ImageNet-1K.
+    """
+    print("Loading ResNet-18 (Pretrained: ImageNet-1K)...")
+    model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+    model.eval()
+    return model
+    
 def load_convnext_base():
     """
     Loads ConvNeXt-Base pretrained on ImageNet-1K.

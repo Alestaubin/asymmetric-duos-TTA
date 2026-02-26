@@ -2,7 +2,7 @@ MODEL:
   ADAPTATION: tent
   ARCH: Standard
 TEST:
-  BATCH_SIZE: 200
+  BATCH_SIZE: 128
   WORKERS: 8
 OPTIM:
   METHOD: Adam
@@ -10,3 +10,4 @@ OPTIM:
   BETA: 0.9
   LR: 1e-3
   WD: 0.
+VAL_PATH: "./data/imagenet/val"

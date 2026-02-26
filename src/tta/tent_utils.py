@@ -6,6 +6,8 @@ import torchvision.transforms as trn
 import torchvision.datasets as dset
 import os
 import torch.nn as nn
+from src.models.inference import get_model_logits_imagenetc
+
 
 def setup_tent(model, cfg):
     """Set up tent adaptation.
@@ -92,7 +94,8 @@ def setup_optimizer(params, cfg):
         raise NotImplementedError
 
 @pickle_cache("tent_logits_trajectory_cache")
-def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_path, tent_cfg):
+def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_path, tent_cfg, ts=None):
+    print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}")
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
     Preserves model weights across the sequence for continual adaptation.
@@ -100,9 +103,22 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
     from src.models.model_loader import get_model
     import torchvision.datasets as dset
     import torchvision.transforms as trn
-    
+    assert ts in [None, "pts", 'naive']
+
     # Setup Model (Loaded once per distortion trajectory)
     tented_model = get_model(model_name, freeze = False, tent_enabled=True, cfg=tent_cfg)
+    
+    if ts == "pts":
+        raise NotImplementedError("PTS temperature scaling not yet implemented for TENT. Please set ts=None or ts='naive'.")
+    elif ts == "naive":
+        print("Applying Naive Temperature Scaling to TENT model...")
+        # get the temperature using the clean validation set
+        from src.calibration.temperature import calibrate_temperature
+        # Load clean validation logits for this model
+        zl_val, labels_val = get_model_logits_imagenetc(model_name, "none", 0, tent_cfg.VAL_PATH, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="val")
+        optimal_T = calibrate_temperature(zl_val, labels_val, device=tented_model.device)
+        tented_model = TemperatureWrapper(tented_model, initial_T=optimal_T)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tented_model = tented_model.to(device)
     tented_model.eval()
@@ -111,8 +127,8 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
     trajectory_labels = {}
 
     preprocess = trn.Compose([
-        trn.CenterCrop(224), 
-        trn.ToTensor(), 
+        trn.CenterCrop(224),
+        trn.ToTensor(),
         trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 

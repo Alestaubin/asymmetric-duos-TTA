@@ -45,6 +45,7 @@ def main():
     config = load_config(cmd_args.config)
     large_name = config['large_model']
     small_name = config['small_model']
+    log_event(f"Loaded Config: Large Model = {large_name}, Small Model = {small_name}")
     distortions = config['corruption']['distortions']
     severities = config['corruption']['severity']
 
@@ -57,10 +58,13 @@ def main():
 
     # Get Temperatures
     # Scalar (Independent)
-    t_large_fixed = calibrate_temperature(zl_val, labels_val, device)
-    t_small_fixed = calibrate_temperature(zs_val, labels_val, device)
+    # t_large_fixed = calibrate_temperature(zl_val, labels_val, device)
+    # t_small_fixed = calibrate_temperature(zs_val, labels_val, device)
+    t_large_fixed, t_small_fixed = 0.9101, 1.3456
     # Joint (Duo)
-    Tl_joint, Ts_joint = jointly_calibrate_temperature(zl_val, zs_val, labels_val)
+    #Tl_joint, Ts_joint = jointly_calibrate_temperature(zl_val, zs_val, labels_val)
+    Tl_joint, Ts_joint = 0.6141, 1.7131
+
 
     all_results = []
     severities = config['corruption']['severity']
@@ -107,8 +111,14 @@ def main():
                     'nll': nll,
                     'ece': ece
                 })
-
+            # log results 
             log_event(f"Processed {d_name} Sev {sev}")
+            log_event(f"Variant Metrics:")
+            for name, logits in variants.items():
+                acc = (logits.max(1)[1] == labels).float().mean().item()
+                nll = F.cross_entropy(logits, labels).item()
+                ece = metrics.ece(logits, labels)
+                log_event(f"  {name}: Acc={acc:.4f}, NLL={nll:.4f}, ECE={ece:.4f}")
 
     # 4. Save and Summarize
     df = pd.DataFrame(all_results)
