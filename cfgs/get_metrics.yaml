@@ -9,23 +9,23 @@ corruption:
   dataset: "imagenet_c"
   severity:
     - 1
-    # - 2
-    # - 3
-    # - 4
-    # - 5
+    - 2
+    - 3
+    - 4
+    - 5
   distortions:
     - 'gaussian_noise'
-    # - 'shot_noise'
-    # - 'impulse_noise'
-    # - 'defocus_blur'
-    # - 'glass_blur'
-    # - 'motion_blur'
-    # - 'zoom_blur'
-    # - 'snow'
-    # - 'frost'
-    # - 'fog'
-    # - 'brightness'
-    # - 'contrast'
-    # - 'elastic_transform'
-    # - 'pixelate'
-    # - 'jpeg_compression'
+    - 'shot_noise'
+    - 'impulse_noise'
+    - 'defocus_blur'
+    - 'glass_blur'
+    - 'motion_blur'
+    - 'zoom_blur'
+    - 'snow'
+    - 'frost'
+    - 'fog'
+    - 'brightness'
+    - 'contrast'
+    - 'elastic_transform'
+    - 'pixelate'
+    - 'jpeg_compression'
