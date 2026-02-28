@@ -19,10 +19,9 @@ def save_result_to_csv(result_dict, output_path):
 
 def main():
     parser = argparse.ArgumentParser(description='Asymmetric Duo Phase 2: Metrics Calculation')
-    parser.add_argument('--config', type=str, default='cfgs/save_logits.yaml', help='Path to config file')
+    parser.add_argument('--config', type=str, default='cfgs/get_metrics.yaml', help='Path to config file')
     cmd_args = parser.parse_args()
     
-    # 1. Setup Config & Paths
     tent_cfg = load_config("cfgs/tent.yaml")
     config = load_config(cmd_args.config)
     
@@ -42,9 +41,18 @@ def main():
     log_event(f"Large: {large_name} | Small: {small_name}")
     log_event("="*60)
 
-    # 2. Calibration Constants (using your calculated values)
-    t_large_fixed, t_small_fixed = 0.9101, 1.3456
-    Tl_joint, Ts_joint = 0.6141, 1.7131
+    # t_large_fixed, t_small_fixed = 0.9101, 1.3456
+    # Tl_joint, Ts_joint = 0.6141, 1.7131
+    t_large_fixed = calibrate_temperature(
+        *get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    )
+    t_small_fixed = calibrate_temperature(
+        *get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    )
+    Tl_joint, Ts_joint = jointly_calibrate_temperature(
+        *get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val"),
+        *get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    )
     
     # ---------------------------------------------------------
     # STEP 3: CLEAN IMAGENET TEST SET (BASELINE)

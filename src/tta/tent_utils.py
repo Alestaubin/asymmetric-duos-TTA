@@ -82,7 +82,7 @@ def get_tent_logits_imagenet_c(model_name,
                                 data_path, 
                                 tent_cfg: dict, 
                                 ts=None):
-    print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}, ts={ts}")
+    # print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}, ts={ts}")
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
     Preserves model weights across the sequence for continual adaptation.
@@ -106,7 +106,7 @@ def get_tent_logits_imagenet_c(model_name,
         from src.calibration.temperature import calibrate_temperature
         # Load clean validation logits for this model
         zl_val, labels_val = get_model_logits_imagenet_c(model_name, "none", 0, tent_cfg["VAL_PATH"], batch_size=tent_cfg["TEST"]["BATCH_SIZE"], num_workers=tent_cfg["TEST"]["WORKERS"], split="val")
-        optimal_T = calibrate_temperature(zl_val, labels_val, device=device)
+        optimal_T = calibrate_temperature(zl_val, labels_val)
         model_fresh = TemperatureWrapper(model_fresh, temperature=optimal_T)
 
     tented_model = setup_tent(model_fresh, tent_cfg)

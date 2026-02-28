@@ -48,11 +48,12 @@ def jointly_calibrate_temperature(logits_l, logits_s, labels):
     return final_Tl,final_Ts
 
 @pickle_cache("calibrated_temperatures")
-def calibrate_temperature(logits, labels, device):
+def calibrate_temperature(logits, labels):
     """
     Finds the temperature that minimizes NLL on clean validation data.
     """
-    print("Starting temperature calibration...")    
+    print("Starting temperature calibration...")  
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")  
     logits = logits.to(device)
     labels = labels.to(device)
 
@@ -75,17 +76,8 @@ def calibrate_temperature(logits, labels, device):
     return optimal_T
 
 class JointPTS(torch.nn.Module):
-    def __init__(self, model_l, model_s, Tl, Ts):
-        super(JointPTS, self).__init__()
-        self.model_l = model_l
-        self.model_s = model_s
-        self.Tl = Tl
-        self.Ts = Ts
+    raise NotImplementedError("Joint PTS not yet implemented. Please use calibrate_temperature for now or set ts=None or ts='naive' when extracting TENT logits.")
 
-    def forward(self, x):
-        logits_l = self.model_l(x) / self.Tl
-        logits_s = self.model_s(x) / self.Ts
-        return (logits_l + logits_s) / 2
 
 
 class TemperatureWrapper(nn.Module):
