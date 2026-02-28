@@ -14,11 +14,9 @@ asymmetric-duos-tta/
 │   └── imagenet-c/
 ├── dependencies/   
 │   └── tent/               # repository from the paper TENT
-├── checkpoints/            # Pre-trained backbones 
 ├── results/                # Output of experiments 
-│   ├── phase1_baselines/   # CSVs with Top-1 and ECE
-│   ├── phase2_entropy/     # JSONs of entropy distributions
-│   └── plots/              # Reliability diagrams and Histograms
+│   ├── metrics/            # results of 2_metrics.py
+│   └── TODO/              
 ├── src/                    
 │   ├── models/             # Model architectures and Duo wrapper
 │   ├── calibration/        # Temperature scaling stuff

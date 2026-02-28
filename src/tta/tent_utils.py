@@ -7,8 +7,6 @@ import torchvision.datasets as dset
 import os
 import torch.nn as nn
 from src.utils.log_utils import log_event
-# from src.models.inference import get_model_logits_imagenet_c
-
 
 def setup_tent(model, cfg):
     """Set up tent adaptation.

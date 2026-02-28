@@ -1,4 +1,4 @@
-small_model: "resnet50"
+small_model: "resnet18"
 large_model: "convnext_base"
 data_path: "./data/imagenet-c"
 val_path: "./data/imagenet/val"
@@ -8,8 +8,8 @@ workers: 8
 corruption:
   dataset: "imagenet_c"
   severity:
-    - 1
-    - 2
+    # - 1
+    # - 2
     - 3
     - 4
     - 5

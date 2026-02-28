@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from time import time
-from dotmap import DotMap
 
 from src.utils.load_utils import load_config
 from src.tta.tent_utils import get_tent_logits_imagenet_c
@@ -16,8 +15,8 @@ def get_entropy(logits: torch.Tensor) -> float:
 
 def main():
     # 1. Setup
-    config = load_config("cfgs/save_logits.yaml")
-    tent_cfg = DotMap(load_config("cfgs/tent.yaml"))
+    config = load_config("cfgs/get_metrics.yaml")
+    tent_cfg = load_config("cfgs/tent.yaml")
     
     model_name = config['large_model']
     # Use a single, high-impact distortion for a clear signal
