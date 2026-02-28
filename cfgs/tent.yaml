@@ -1,7 +1,6 @@
 MODEL:
-  ADAPTATION: tent
-  ARCH: Standard
-  EPISODIC: False
+  NAME: WideResNet50
+  EPISODIC: True
 TEST:
   BATCH_SIZE: 128
   WORKERS: 8
@@ -9,6 +8,6 @@ OPTIM:
   METHOD: Adam
   STEPS: 1
   BETA: 0.9
-  LR: 1e-3
+  LR: 1e-5
   WD: 0.
 VAL_PATH: "./data/imagenet/val"

@@ -1,5 +1,5 @@
-small_model: "resnet18"
-large_model: "convnext_base"
+small_model: "resnet34"
+large_model: "wideresnet50_2"
 data_path: "./data/imagenet-c"
 val_path: "./data/imagenet/val"
 test_path: "./data/imagenet/validation"
@@ -15,17 +15,17 @@ corruption:
     - 5
   distortions:
     - 'gaussian_noise'
-    - 'shot_noise'
-    - 'impulse_noise'
-    - 'defocus_blur'
-    - 'glass_blur'
-    - 'motion_blur'
-    - 'zoom_blur'
-    - 'snow'
-    - 'frost'
-    - 'fog'
-    - 'brightness'
-    - 'contrast'
-    - 'elastic_transform'
-    - 'pixelate'
-    - 'jpeg_compression'
+    # - 'shot_noise'
+    # - 'impulse_noise'
+    # - 'defocus_blur'
+    # - 'glass_blur'
+    # - 'motion_blur'
+    # - 'zoom_blur'
+    # - 'snow'
+    # - 'frost'
+    # - 'fog'
+    # - 'brightness'
+    # - 'contrast'
+    # - 'elastic_transform'
+    # - 'pixelate'
+    # - 'jpeg_compression'

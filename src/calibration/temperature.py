@@ -43,9 +43,45 @@ def jointly_calibrate_temperature(logits_l, logits_s, labels):
     final_Tl, final_Ts = Tl.item(), Ts.item()
     print(f"Refined Tl={final_Tl:.4f}, Ts={final_Ts:.4f}")
     print(f"Final NLL = {F.cross_entropy((logits_l / Tl + logits_s / Ts)/2, labels).item():.4f}")
-
+    print(f"Validation accuracy with joint scaling: {((logits_l / Tl + logits_s / Ts)/2).max(1)[1].eq(labels).float().mean().item():.4f}")
+    print(f"Validation accuracy of large model: {logits_l.max(1)[1].eq(labels).float().mean().item():.4f}")
+    print(f"Validation accuracy of small model: {logits_s.max(1)[1].eq(labels).float().mean().item():.4f}")
     print("=====Joint calibration complete and models wrapped.=====")
     return final_Tl,final_Ts
+    
+# def calibrate_temperature(logits: torch.Tensor, labels: torch.Tensor) -> float:
+#     '''
+#         Taken from https://github.com/timgzhou/asymmetric-duos/blob/main/evaluate/3_duo_temp_scale.py
+#     '''
+#     original_nll = F.cross_entropy(logits, labels).item()
+#     print(f"NLL before temperature scaling = {original_nll:.4f}")
+#     best_nll = float("inf")
+#     best_T = 1.0
+#     for T in torch.arange(0.05, 5.05, 0.05):
+#         T = T.item()
+#         loss = F.cross_entropy(logits / T, labels).item()
+#         if loss < best_nll:
+#             best_nll = loss
+#             best_T = T
+#     print(f"Grid search best T = {best_T:.3f}, NLL = {best_nll:.4f}")
+
+#     print(f"Use LBFGS to find a fine-grained temperature")
+#     temp_tensor = torch.tensor([best_T], requires_grad=True, device=logits.device)
+#     optimizer = torch.optim.LBFGS([temp_tensor], lr=0.01, max_iter=50)
+
+#     def closure():
+#         optimizer.zero_grad()
+#         loss = F.cross_entropy(logits / temp_tensor, labels)
+#         loss.backward()
+#         return loss
+
+#     optimizer.step(closure)
+#     T_refined = temp_tensor.detach().item()
+
+#     final_nll = F.cross_entropy(logits / T_refined, labels).item()
+#     print(f"Refined T = {T_refined:.4f}")
+#     print(f"NLL after temperature scaling = {final_nll:.4f}")
+#     return T_refined
 
 @pickle_cache("calibrated_temperatures")
 def calibrate_temperature(logits, labels):
@@ -75,10 +111,14 @@ def calibrate_temperature(logits, labels):
     print(f"Calibration complete. Optimal Temperature T={optimal_T:.4f}")
     return optimal_T
 
-class JointPTS(torch.nn.Module):
+def get_joint_pts_model(logits_l, logits_s, labels):
+    """
+    This function trains a small neural network to predict the optimal temperatures for the large and small models based on their logits.
+    """
     raise NotImplementedError("Joint PTS not yet implemented. Please use calibrate_temperature for now or set ts=None or ts='naive' when extracting TENT logits.")
 
-
+class JointPTS(torch.nn.Module):
+    pass
 
 class TemperatureWrapper(nn.Module):
     """

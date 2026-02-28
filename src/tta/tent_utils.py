@@ -92,7 +92,8 @@ def get_tent_logits_imagenet_c(model_name,
     import torchvision.transforms as trn
     assert ts in [None, "pts", 'naive']
     from src.models.inference import get_model_logits_imagenet_c
-
+    episodic = tent_cfg["MODEL"]["EPISODIC"]
+    log_event(f"Running TENT on {model_name} with distortion={distortion_name} | Severities={severities} | Episodic={episodic} | TS={ts}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model_fresh = get_model(model_name, freeze = False)
@@ -100,7 +101,7 @@ def get_tent_logits_imagenet_c(model_name,
     if ts == "pts":
         raise NotImplementedError("PTS temperature scaling not yet implemented for TENT. Please set ts=None or ts='naive'.")
     elif ts == "naive":
-        print("Applying Naive Temperature Scaling to TENT model...")
+        # print("Applying Naive Temperature Scaling to TENT model...")
         from src.calibration.temperature import TemperatureWrapper
         # get the temperature using the clean validation set
         from src.calibration.temperature import calibrate_temperature
@@ -123,15 +124,17 @@ def get_tent_logits_imagenet_c(model_name,
 
     # Iterate only through the requested severities
     for sev in severities:
-        print(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
-        
+        log_event(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
+        if episodic:
+            log_event("Episodic TTA: Resetting model.")
+            tented_model.reset()  # Reset model weights to initial state for episodic TTA
         if distortion_name == "none" and sev == 0:
             root_path = data_path # Assumes path to clean val images
         else:
             root_path = os.path.join(data_path, distortion_name, str(sev))
         
         if not os.path.exists(root_path):
-            print(f"Warning: Path {root_path} not found. Skipping.")
+            log_event(f"Warning: Path {root_path} not found. Skipping.")
             continue
 
         dataset = dset.ImageFolder(root=root_path, transform=preprocess)

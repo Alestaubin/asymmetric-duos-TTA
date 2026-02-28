@@ -43,15 +43,18 @@ def main():
 
     # t_large_fixed, t_small_fixed = 0.9101, 1.3456
     # Tl_joint, Ts_joint = 0.6141, 1.7131
+    zt_val_large, labels = get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    zt_val_small, _ = get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+
     t_large_fixed = calibrate_temperature(
-        *get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+        zt_val_large, labels
     )
     t_small_fixed = calibrate_temperature(
-        *get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+        zt_val_small, labels
     )
+
     Tl_joint, Ts_joint = jointly_calibrate_temperature(
-        *get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val"),
-        *get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+        zt_val_large, zt_val_small, labels
     )
     
     # ---------------------------------------------------------
@@ -80,7 +83,7 @@ def main():
     variants_clean = {
         "f_large": zl_clean, "f_small": zs_clean, "tent_f_large": zt_clean,
         "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
-        "tent_f_large_TS_naive": zt_clean_ts / t_large_fixed,
+        "tent_f_large_TS_naive": zt_clean_ts,
         "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2
     }
 
@@ -109,7 +112,7 @@ def main():
         log_event(f"Distortion: {d_name}")
         
         tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], tent_cfg
+            large_name, d_name, severities, config['data_path'], tent_cfg, ts=None
         )
         tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
             large_name, d_name, severities, config['data_path'], tent_cfg, ts="naive"

@@ -15,6 +15,10 @@ def get_model(model_name, freeze=True):
         model = load_convnext_base()
     elif "resnet18" in model_name:
         model = load_resnet18()
+    elif "resnet34" in model_name:
+        model = load_resnet34()
+    elif "wideresnet50_2" in model_name:
+        model = load_wideresnet50_2()
     else:
         raise ValueError(f"Model {model_name} not recognized. Add it to load_models.py")
         
@@ -41,6 +45,15 @@ def load_resnet18():
     model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
     model.eval()
     return model
+
+def load_resnet34():
+    """
+    """
+    print("Loading ResNet-34 (Pretrained: ImageNet-1K)...")
+    model = models.resnet34(weights=models.ResNet34_Weights.IMAGENET1K_V1)
+    model.eval()
+    return model
+
     
 def load_convnext_base():
     """
@@ -48,5 +61,14 @@ def load_convnext_base():
     """
     print("Loading ConvNeXt-Base (Pretrained: ImageNet-1K)...")
     model = models.convnext_base(weights=models.ConvNeXt_Base_Weights.IMAGENET1K_V1)
+    model.eval()
+    return model
+
+def load_wideresnet50_2():
+    """
+    Loads Wide ResNet-50-2 pretrained on ImageNet-1K.
+    """
+    print("Loading Wide ResNet-50-2 (Pretrained: ImageNet-1K)...")
+    model = models.wide_resnet50_2(weights=models.Wide_ResNet50_2_Weights.IMAGENET1K_V1)
     model.eval()
     return model
