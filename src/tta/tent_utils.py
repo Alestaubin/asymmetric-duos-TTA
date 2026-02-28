@@ -6,6 +6,7 @@ import torchvision.transforms as trn
 import torchvision.datasets as dset
 import os
 import torch.nn as nn
+from src.utils.log_utils import log_event
 # from src.models.inference import get_model_logits_imagenet_c
 
 
@@ -43,29 +44,12 @@ def setup_tent(model, cfg):
     
     # 4. Wrap in TENT
     tent_model = tent.Tent(model, optimizer,
-                           steps=int(cfg.OPTIM.STEPS),
-                           episodic=cfg.MODEL.EPISODIC)
+                           steps=int(cfg["OPTIM"]["STEPS"]),
+                           episodic=cfg["MODEL"]["EPISODIC"])
     
-    print(f"Params for adaptation (found {len(params)}): {param_names[:5]}...") 
+    log_event(f"Params for adaptation: {len(param_names)}")
     return tent_model
 
-# def setup_tent(model, cfg):
-#     """Set up tent adaptation.
-
-#     Configure the model for training + feature modulation by batch statistics,
-#     collect the parameters for feature modulation by gradient optimization,
-#     set up the optimizer, and then tent the model.
-#     """
-#     model = tent.configure_model(model)
-#     params, param_names = tent.collect_params(model)
-#     optimizer = setup_optimizer(params, cfg)
-#     tent_model = tent.Tent(model, optimizer,
-#                            steps=int(cfg.OPTIM.STEPS),
-#                            episodic=cfg.MODEL.EPISODIC)
-#     print(f"model for adaptation: {model}")
-#     print(f"params for adaptation: {param_names}")
-#     print(f"optimizer for adaptation: {optimizer}")
-#     return tent_model
 
 def setup_optimizer(params, cfg):
     """Set up optimizer for tent adaptation.
@@ -78,24 +62,29 @@ def setup_optimizer(params, cfg):
 
     For best results, try tuning the learning rate and batch size.
     """
-    if cfg.OPTIM.METHOD == 'Adam':
+    if cfg["OPTIM"]["METHOD"] == 'Adam':
         return optim.Adam(params,
-                    lr=float(cfg.OPTIM.LR),
-                    betas=(float(cfg.OPTIM.BETA), 0.999),
-                    weight_decay=float(cfg.OPTIM.WD))
-    elif cfg.OPTIM.METHOD == 'SGD':
+                    lr=float(cfg["OPTIM"]["LR"]),
+                    betas=(float(cfg["OPTIM"]["BETA"]), 0.999),
+                    weight_decay=float(cfg["OPTIM"]["WD"]))
+    elif cfg["OPTIM"]["METHOD"] == 'SGD':
         return optim.SGD(params,
-                   lr=cfg.OPTIM.LR,
-                   momentum=cfg.OPTIM.MOMENTUM,
-                   dampening=cfg.OPTIM.DAMPENING,
-                   weight_decay=cfg.OPTIM.WD,
-                   nesterov=cfg.OPTIM.NESTEROV)
+                   lr=cfg["OPTIM"]["LR"],
+                   momentum=cfg["OPTIM"]["MOMENTUM"],
+                   dampening=cfg["OPTIM"]["DAMPENING"],
+                   weight_decay=cfg["OPTIM"]["WD"],
+                   nesterov=cfg["OPTIM"]["NESTEROV"])
     else:
         raise NotImplementedError
 
 @pickle_cache("tent_logits_trajectory_cache")
-def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_path, tent_cfg, ts=None):
-    print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}")
+def get_tent_logits_imagenet_c(model_name, 
+                                distortion_name, 
+                                severities, 
+                                data_path, 
+                                tent_cfg: dict, 
+                                ts=None):
+    print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}, ts={ts}")
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
     Preserves model weights across the sequence for continual adaptation.
@@ -108,8 +97,8 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Setup Model (Loaded once per distortion trajectory)
-    tented_model = get_model(model_name, freeze = False, tent_enabled=True, cfg=tent_cfg)
+    model_fresh = get_model(model_name, freeze = False)
+
     if ts == "pts":
         raise NotImplementedError("PTS temperature scaling not yet implemented for TENT. Please set ts=None or ts='naive'.")
     elif ts == "naive":
@@ -118,13 +107,12 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
         # get the temperature using the clean validation set
         from src.calibration.temperature import calibrate_temperature
         # Load clean validation logits for this model
-        zl_val, labels_val = get_model_logits_imagenet_c(model_name, "none", 0, tent_cfg.VAL_PATH, batch_size=tent_cfg.TEST.BATCH_SIZE, num_workers=tent_cfg.TEST.WORKERS, split="val")
+        zl_val, labels_val = get_model_logits_imagenet_c(model_name, "none", 0, tent_cfg["VAL_PATH"], batch_size=tent_cfg["TEST"]["BATCH_SIZE"], num_workers=tent_cfg["TEST"]["WORKERS"], split="val")
         optimal_T = calibrate_temperature(zl_val, labels_val, device=device)
-        tented_model = TemperatureWrapper(tented_model, temperature=optimal_T)
+        model_fresh = TemperatureWrapper(model_fresh, temperature=optimal_T)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    tented_model = setup_tent(model_fresh, tent_cfg)
     tented_model = tented_model.to(device)
-    tented_model.eval()
 
     trajectory_logits = {}
     trajectory_labels = {}
@@ -150,8 +138,8 @@ def get_tent_logits_imagenet_c(model_name, distortion_name, severities, data_pat
 
         dataset = dset.ImageFolder(root=root_path, transform=preprocess)
         loader = torch.utils.data.DataLoader(
-            dataset, batch_size=tent_cfg.TEST.BATCH_SIZE, 
-            num_workers=tent_cfg.TEST.WORKERS, pin_memory=True
+            dataset, batch_size=tent_cfg["TEST"]["BATCH_SIZE"], 
+            num_workers=tent_cfg["TEST"]["WORKERS"], pin_memory=True
         )
 
         sev_logits = []

@@ -1,6 +1,7 @@
 MODEL:
   ADAPTATION: tent
   ARCH: Standard
+  EPISODIC: False
 TEST:
   BATCH_SIZE: 128
   WORKERS: 8

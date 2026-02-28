@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 import argparse
-from dotmap import DotMap 
 from datetime import datetime
 
 from src.utils.load_utils import load_config
@@ -24,7 +23,7 @@ def main():
     cmd_args = parser.parse_args()
     
     # 1. Setup Config & Paths
-    tent_cfg = DotMap(load_config("cfgs/tent.yaml"))
+    tent_cfg = load_config("cfgs/tent.yaml")
     config = load_config(cmd_args.config)
     
     large_name = config['large_model']

@@ -9,7 +9,6 @@ from src.tta.tent_utils import get_tent_logits_imagenet_c
 from src.models.inference import get_model_logits_imagenet_c
 from src.utils.load_utils import load_config
 import logging
-from dotmap import DotMap 
 from src.calibration.temperature import TemperatureWrapper
 
 '''
@@ -29,7 +28,6 @@ cmd_args = parser.parse_args()
 
 # Load the YAML configuration
 cfg = load_config(cmd_args.config)
-cfg = DotMap(cfg)
 
 if not cmd_args.tent:
     print("\n--- Extracting Static Logits (Source & ImageNet-C) ---")
@@ -53,7 +51,6 @@ elif cmd_args.tent:
     print(f"\nProcessing Backbone: {cmd_args.model}")
 
     tent_cfg = load_config("cfgs/tent.yaml")
-    tent_cfg = DotMap(tent_cfg)
 
     target_severities = cfg.corruption.severity  # e.g., [1, 2, 3, 4, 5]
 
