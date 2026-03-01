@@ -111,14 +111,8 @@ def calibrate_temperature(logits, labels):
     print(f"Calibration complete. Optimal Temperature T={optimal_T:.4f}")
     return optimal_T
 
-def get_joint_pts_model(logits_l, logits_s, labels):
-    """
-    This function trains a small neural network to predict the optimal temperatures for the large and small models based on their logits.
-    """
-    raise NotImplementedError("Joint PTS not yet implemented. Please use calibrate_temperature for now or set ts=None or ts='naive' when extracting TENT logits.")
 
-class JointPTS(torch.nn.Module):
-    pass
+
 
 class TemperatureWrapper(nn.Module):
     """

@@ -1,0 +1,42 @@
+small_model: "resnet34"
+large_model: "wideresnet50_2"
+data_path: "./data/imagenet-c"
+val_path: "./data/imagenet/val"
+test_path: "./data/imagenet/validation"
+batch_size: 128
+workers: 8
+corruption:
+  dataset: "imagenet_c"
+  severity:
+    # - 1
+    # - 2
+    - 3
+    - 4
+    - 5
+  distortions:
+    - 'gaussian_noise'
+    - 'shot_noise'
+    - 'impulse_noise'
+    - 'defocus_blur'
+    - 'glass_blur'
+    - 'motion_blur'
+    - 'zoom_blur'
+    - 'snow'
+    - 'frost'
+    - 'fog'
+    - 'brightness'
+    - 'contrast'
+    - 'elastic_transform'
+    - 'pixelate'
+    - 'jpeg_compression'
+PTS:
+  JOINT:
+    lr: 0.0001
+    epochs: 50
+    batch_size: 128
+    num_workers: 8
+  SINGLE:
+    lr: 0.0001
+    epochs: 50
+    batch_size: 128
+    num_workers: 8
