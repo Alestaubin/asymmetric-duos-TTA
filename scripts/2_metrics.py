@@ -6,23 +6,19 @@ import argparse
 from datetime import datetime
 
 from src.utils.load_utils import load_config
-from src.utils import metrics
+from src.utils.metrics import get_metrics_dict
 from src.calibration.temperature import jointly_calibrate_temperature, calibrate_temperature
 from src.models.inference import get_model_logits_imagenet_c
 from src.tta.tent_utils import get_tent_logits_imagenet_c
 from src.utils.log_utils import log_event
-
-def save_result_to_csv(result_dict, output_path):
-    """Appends a single result row to the CSV. Creates file/header if it doesn't exist."""
-    df = pd.DataFrame([result_dict])
-    df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))
+from src.calibration.pts import get_joint_pts_model, get_pts_logits, get_pts_model, get_joint_pts_logits
+from src.utils.load_utils import save_result_to_csv
 
 def main():
-    parser = argparse.ArgumentParser(description='Asymmetric Duo Phase 2: Metrics Calculation')
+    parser = argparse.ArgumentParser(description='Getting metrics for PTS and TS variants')
     parser.add_argument('--config', type=str, default='cfgs/get_metrics.yaml', help='Path to config file')
     cmd_args = parser.parse_args()
     
-    tent_cfg = load_config("cfgs/tent.yaml")
     config = load_config(cmd_args.config)
     
     large_name = config['large_model']
@@ -37,70 +33,141 @@ def main():
     output_path = os.path.join(output_dir, f"metrics_{large_name}_{small_name}_{timestamp}.csv")
 
     log_event("="*60)
-    log_event(f"PHASE 2 START | File: {output_path}")
+    log_event(f"METRICS EXPERIMENT START | File: {output_path}")
     log_event(f"Large: {large_name} | Small: {small_name}")
     log_event("="*60)
 
-    # t_large_fixed, t_small_fixed = 0.9101, 1.3456
-    # Tl_joint, Ts_joint = 0.6141, 1.7131
-    zt_val_large, labels = get_model_logits_imagenet_c(large_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
-    zt_val_small, _ = get_model_logits_imagenet_c(small_name, "none", 0, config['val_path'], batch_size=config['batch_size'], num_workers=config['workers'], split="val")
+    # ---------------------------------------------------------
+    # Obtain validation logits for temperature scaling
+    # ---------------------------------------------------------
 
+    zt_val_large, labels = get_model_logits_imagenet_c(
+                                                    model_name=large_name, 
+                                                    distortion="none", 
+                                                    severity=0,
+                                                    data_path=config['val_path'], 
+                                                    batch_size=config['batch_size'], 
+                                                    num_workers=config['workers'], 
+                                                    split="val"
+                                                    )
+    zt_val_small, _ = get_model_logits_imagenet_c(
+                                                model_name=small_name, 
+                                                distortion="none", 
+                                                severity=0, 
+                                                data_path=config['val_path'], 
+                                                batch_size=config['batch_size'], 
+                                                num_workers=config['workers'], 
+                                                split="val"
+                                                )
+
+    # ---------------------------------------------------------
+    # Temperature scaling
+    # ---------------------------------------------------------
+
+    # PTS Models
+    large_pts_model = get_pts_model(model_name=large_name, 
+                                    data_path=config['val_path'], 
+                                    epochs=config['PTS']['SINGLE']['epochs'], 
+                                    lr=config['PTS']['SINGLE']['lr'], 
+                                    batch_size=config['PTS']['SINGLE']['batch_size'])
+    small_pts_model = get_pts_model(model_name=small_name, 
+                                    data_path=config['val_path'], 
+                                    epochs=config['PTS']['SINGLE']['epochs'], 
+                                    lr=config['PTS']['SINGLE']['lr'], 
+                                    batch_size=config['PTS']['SINGLE']['batch_size'])
+    joint_pts_model = get_joint_pts_model(small_model=small_name, 
+                                        large_model=large_name, 
+                                        data_path=config['val_path'], 
+                                        epochs=config['PTS']['JOINT']['epochs'], 
+                                        lr=config['PTS']['JOINT']['lr'], 
+                                        batch_size=config['PTS']['JOINT']['batch_size'])
+    # Naive TS temperatures
     t_large_fixed = calibrate_temperature(
         zt_val_large, labels
     )
     t_small_fixed = calibrate_temperature(
         zt_val_small, labels
     )
-
     Tl_joint, Ts_joint = jointly_calibrate_temperature(
         zt_val_large, zt_val_small, labels
     )
-    
+    log_event(f"Naive TS -> T_large: {t_large_fixed:.4f} | T_small: {t_small_fixed:.4f}")
+    log_event(f"Naive Joint TS -> Tl_joint: {Tl_joint:.4f} | Ts_joint: {Ts_joint:.4f}")
+
+
     # ---------------------------------------------------------
-    # STEP 3: CLEAN IMAGENET TEST SET (BASELINE)
+    # Get the logits for the clean test set for both models 
     # ---------------------------------------------------------
+
     log_event(">>> Processing Clean ImageNet Test Set...")
     zl_clean, labels_clean = get_model_logits_imagenet_c(
-        large_name, "none", 0, config['test_path'], 
-        batch_size=config['batch_size'], num_workers=config['workers'], split="test"
+                                                    model_name=large_name, 
+                                                    distortion="none", 
+                                                    severity=0, 
+                                                    data_path=config['test_path'], 
+                                                    batch_size=config['batch_size'], 
+                                                    num_workers=config['workers'], 
+                                                    split="test"
     )
     zs_clean, _ = get_model_logits_imagenet_c(
-        small_name, "none", 0, config['test_path'], 
-        batch_size=config['batch_size'], num_workers=config['workers'], split="test"
+        model_name=small_name, 
+        distortion="none", 
+        severity=0, 
+        data_path=config['test_path'], 
+        batch_size=config['batch_size'], 
+        num_workers=config['workers'],
+        split="test"
     )
-    
-    zt_clean_dict, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], tent_cfg, ts=None
+    tent_logits_dict, _ = get_tent_logits_imagenet_c(
+            large_name, "none", [0], config['test_path'], config, ts=None
     )
-    zt_clean = zt_clean_dict[0]
+    tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
+        large_name, "none", [0], config['test_path'], config, ts="naive"
+    )
+    tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
+        large_name, "none", [0], config['test_path'], config, ts="pts"
+    )
+    zt = tent_logits_dict[0]
+    zt_ts = tent_logits_dict_ts[0]
+    zt_pts = tent_logits_dict_pts[0]
 
-    zt_clean_dict_ts, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], tent_cfg, ts="naive"
-    )
-    zt_clean_ts = zt_clean_dict_ts[0]
+
+    # ---------------------------------------------------------
+    # Pass the logits through the PTS models to get calibrated logits for the clean test set
+    # ---------------------------------------------------------
+
+    log_event(">>> Calibrating Clean Test Set Logits with PTS models...")
+    zl_clean_pts = get_pts_logits(large_pts_model, zl_clean)
+    zs_clean_pts = get_pts_logits(small_pts_model, zs_clean)
+    zd_clean_pts = get_joint_pts_logits(joint_pts_model, zl_clean, zs_clean)
     
     variants_clean = {
-        "f_large": zl_clean, "f_small": zs_clean, "tent_f_large": zt_clean,
-        "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
-        "tent_f_large_TS_naive": zt_clean_ts,
-        "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2
+                "f_large": zl, "f_small": zs, 
+                "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
+                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
+                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
+                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
+                "tent_f_large": zt,
+                "tent_f_large_TS_naive": zt_ts,
+                "tent_f_large_TS_pts": zt_pts,
     }
 
     for name, logits in variants_clean.items():
-        acc = (logits.max(1)[1] == labels_clean).float().mean().item()
-        nll = F.cross_entropy(logits, labels_clean).item()
-        ece = metrics.ece(logits, labels_clean)
+
+        metrics_dict = get_metrics_dict(probs=F.softmax(logits, dim=1), labels=labels_clean)
         
         res = {
             'large_model': large_name,
             'small_model': small_name,
             'distortion': 'none', 
-            'severity': 0, 
+            'severity': 0,
             'variant': name, 
-            'accuracy': acc, 
-            'nll': nll, 
-            'ece': ece
+            'accuracy': metrics_dict['accuracy'], 
+            'nll': metrics_dict['nll'], 
+            'ece': metrics_dict['ece'],
+            'tim_ece': metrics_dict['tim_ece'],
+            'f1': metrics_dict['f1'],
+            'brier': metrics_dict['brier']
         }
         save_result_to_csv(res, output_path)
 
@@ -112,10 +179,13 @@ def main():
         log_event(f"Distortion: {d_name}")
         
         tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], tent_cfg, ts=None
+            large_name, d_name, severities, config['data_path'], config, ts=None
         )
         tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], tent_cfg, ts="naive"
+            large_name, d_name, severities, config['data_path'], config, ts="naive"
+        )
+        tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
+            large_name, d_name, severities, config['data_path'], config, ts="pts"
         )
 
         for sev in severities:
@@ -125,18 +195,21 @@ def main():
                                                    batch_size=config['batch_size'], num_workers=config['workers'])
             zt = tent_logits_dict[sev]
             zt_ts = tent_logits_dict_ts[sev]
+            zt_pts = tent_logits_dict_pts[sev]
 
             variants = {
-                "f_large": zl, "f_small": zs, "tent_f_large": zt,
+                "f_large": zl, "f_small": zs, 
                 "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
+                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
+                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
+                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
+                "tent_f_large": zt,
                 "tent_f_large_TS_naive": zt_ts,
-                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2
+                "tent_f_large_TS_pts": zt_pts,
             }
 
             for name, logits in variants.items():
-                acc = (logits.max(1)[1] == labels).float().mean().item()
-                nll = F.cross_entropy(logits, labels).item()
-                ece = metrics.ece(logits, labels)
+                metrics_dict = get_metrics_dict(probs=F.softmax(logits, dim=1), labels=labels)
                 
                 res = {
                     'large_model': large_name,
@@ -144,9 +217,12 @@ def main():
                     'distortion': d_name, 
                     'severity': sev, 
                     'variant': name, 
-                    'accuracy': acc, 
-                    'nll': nll, 
-                    'ece': ece
+                    'accuracy': metrics_dict['accuracy'], 
+                    'nll': metrics_dict['nll'], 
+                    'ece': metrics_dict['ece'],
+                    'tim_ece': metrics_dict['tim_ece'],
+                    'f1': metrics_dict['f1'],
+                    'brier': metrics_dict['brier']
                 }
                 save_result_to_csv(res, output_path)
             

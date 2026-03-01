@@ -7,6 +7,7 @@ import torchvision.datasets as dset
 import os
 import torch.nn as nn
 from src.utils.log_utils import log_event
+from src.calibration.pts import PTSWrapper, get_pts_model
 
 def setup_tent(model, cfg):
     """Set up tent adaptation.
@@ -80,9 +81,8 @@ def get_tent_logits_imagenet_c(model_name,
                                 distortion_name, 
                                 severities, 
                                 data_path, 
-                                tent_cfg: dict, 
+                                cfg: dict, 
                                 ts=None):
-    # print(f"get_tent_logits_imagenet_c called with: model={model_name}, distortion={distortion_name}, severities={severities}, data_path={data_path}, tent_cfg={tent_cfg}, ts={ts}")
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
     Preserves model weights across the sequence for continual adaptation.
@@ -92,25 +92,38 @@ def get_tent_logits_imagenet_c(model_name,
     import torchvision.transforms as trn
     assert ts in [None, "pts", 'naive']
     from src.models.inference import get_model_logits_imagenet_c
-    episodic = tent_cfg["MODEL"]["EPISODIC"]
+    episodic = cfg["TENT"]["MODEL"]["EPISODIC"]
     log_event(f"Running TENT on {model_name} with distortion={distortion_name} | Severities={severities} | Episodic={episodic} | TS={ts}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model_fresh = get_model(model_name, freeze = False)
 
     if ts == "pts":
-        raise NotImplementedError("PTS temperature scaling not yet implemented for TENT. Please set ts=None or ts='naive'.")
+        pts_model = get_pts_model(model_name=model_name, 
+                                        data_path=cfg['val_path'], 
+                                        epochs=cfg['PTS']['SINGLE']['epochs'], 
+                                        lr=cfg['PTS']['SINGLE']['lr'], 
+                                        batch_size=cfg['PTS']['SINGLE']['batch_size'])
+        # NOTE: when running tent on the following PTS-wrapped model, does the PTS model also get updated during tent adaptation? 
+        # If so, is this desirable or should we freeze the PTS model during tent adaptation?
+        model_fresh = PTSWrapper(model_fresh, pts_model)
     elif ts == "naive":
         # print("Applying Naive Temperature Scaling to TENT model...")
         from src.calibration.temperature import TemperatureWrapper
         # get the temperature using the clean validation set
         from src.calibration.temperature import calibrate_temperature
         # Load clean validation logits for this model
-        zl_val, labels_val = get_model_logits_imagenet_c(model_name, "none", 0, tent_cfg["VAL_PATH"], batch_size=tent_cfg["TEST"]["BATCH_SIZE"], num_workers=tent_cfg["TEST"]["WORKERS"], split="val")
+        zl_val, labels_val = get_model_logits_imagenet_c(model_name = model_name, 
+                                                            distortion="none", 
+                                                            severity=0, 
+                                                            data_path=cfg["val_path"], 
+                                                            batch_size=cfg["TENT"]["TEST"]["BATCH_SIZE"], 
+                                                            num_workers=cfg["TENT"]["TEST"]["WORKERS"], 
+                                                            split="val")
         optimal_T = calibrate_temperature(zl_val, labels_val)
         model_fresh = TemperatureWrapper(model_fresh, temperature=optimal_T)
 
-    tented_model = setup_tent(model_fresh, tent_cfg)
+    tented_model = setup_tent(model_fresh, cfg["TENT"])
     tented_model = tented_model.to(device)
 
     trajectory_logits = {}
@@ -139,8 +152,8 @@ def get_tent_logits_imagenet_c(model_name,
 
         dataset = dset.ImageFolder(root=root_path, transform=preprocess)
         loader = torch.utils.data.DataLoader(
-            dataset, batch_size=tent_cfg["TEST"]["BATCH_SIZE"], 
-            num_workers=tent_cfg["TEST"]["WORKERS"], pin_memory=True
+            dataset, batch_size=cfg["TENT"]["TEST"]["BATCH_SIZE"], 
+            num_workers=cfg["TENT"]["TEST"]["WORKERS"], pin_memory=True
         )
 
         sev_logits = []

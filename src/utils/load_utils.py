@@ -7,6 +7,7 @@ import hashlib
 from collections import Counter
 import copy
 import yaml
+import pandas as pd
 
 
 DATA_DIR = Path("data/cache")
@@ -79,3 +80,8 @@ def load_config(config_file_path):
             # Handle potential YAML parsing errors
             print(exc)
             return None
+
+def save_result_to_csv(result_dict, output_path):
+    """Appends a single result row to the CSV. Creates file/header if it doesn't exist."""
+    df = pd.DataFrame([result_dict])
+    df.to_csv(output_path, mode='a', index=False, header=not os.path.exists(output_path))

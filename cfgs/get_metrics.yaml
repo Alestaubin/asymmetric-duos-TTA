@@ -29,3 +29,27 @@ corruption:
     # - 'elastic_transform'
     # - 'pixelate'
     # - 'jpeg_compression'
+PTS:
+  JOINT:
+    lr: 0.0001
+    epochs: 50
+    batch_size: 128
+    num_workers: 8
+  SINGLE:
+    lr: 0.0001
+    epochs: 50
+    batch_size: 128
+    num_workers: 8
+TENT:
+  MODEL:
+    NAME: WideResNet50
+    EPISODIC: True
+  TEST:
+    BATCH_SIZE: 128
+    WORKERS: 8
+  OPTIM:
+    METHOD: Adam
+    STEPS: 1
+    BETA: 0.9
+    LR: 1e-5
+    WD: 0.

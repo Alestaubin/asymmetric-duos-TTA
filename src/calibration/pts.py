@@ -81,6 +81,7 @@ def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4,
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_classes = 1000 # Assume ImageNet 1000 classes
     
+    # TODO: don't make the num_workers hardcoded here. 
     logits_l, labels = get_model_logits_imagenet_c(large_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
     logits_s, _      = get_model_logits_imagenet_c(small_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
     
@@ -187,7 +188,7 @@ def get_pts_logits(model, logits):
     return scaled_logits.cpu()
 
 
-def  (model, zl, zs):
+def get_joint_pts_logits(model, zl, zs):
     """
     Passes the raw logit tuples through the JointPTS model to get calibrated logits.
     """
