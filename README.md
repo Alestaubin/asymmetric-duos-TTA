@@ -42,3 +42,11 @@ When this repository is cloned, `dependencies/tent` will be empty. You must run:
 git submodule update --init --recursive
 ```
 
+In `dependencies/tent/tent.py`, change line 75 and 104 to  
+```
+        if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+```
+and line 124 to 
+```
+    has_bn = any([isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)) for m in model.modules()])
+```

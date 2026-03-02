@@ -52,23 +52,15 @@ def main():
     # acc_base = (logits_base.max(1)[1] == labels).float().mean().item()
     # ent_base = get_entropy(logits_base)
 
-    model = get_model(model_name="convnext_base", freeze=False)
-    
-    cfg = config["TENT"]
-    tent_model = setup_tent(model, cfg)
-    tent_model = tent_model.to(device)
-
     # ---------------------------------------------------------
     # TEST 1: TENT WITHOUT TS
     # ---------------------------------------------------------
     log_event(">>> Running TENT (Standard)...")
     start = time()
     # We use a dummy ts value or force a cache skip if necessary to ensure fresh results
-    logits_raw_dict, labels_dict = get_tent_logits_imagenet_c(
-        model_name, distortion, [severity], config['data_path'], config, ts=None
+    logits_raw, labels = get_tent_logits_imagenet_c(
+        model_name, distortion, severity, config['data_path'], config, ts=None
     )
-    logits_raw = logits_raw_dict[severity]
-    labels = labels_dict[severity]
     acc_raw = (logits_raw.max(1)[1] == labels).float().mean().item()
     ent_raw = get_entropy(logits_raw)
     metrics_raw = get_metrics_dict(F.softmax(logits_raw, dim=-1), labels)

@@ -82,12 +82,15 @@ def main():
                                         lr=config['PTS']['JOINT']['lr'], 
                                         batch_size=config['PTS']['JOINT']['batch_size'])
     # Naive TS temperatures
+    log_event(f">>> Calibrating temperature for large model {large_name}")
     t_large_fixed = calibrate_temperature(
         zt_val_large, labels
     )
+    log_event(f">>> Calibrating temperature for small model {small_name}")
     t_small_fixed = calibrate_temperature(
         zt_val_small, labels
     )
+    log_event(f">>> Calibrating joint temperatures for duo...")
     Tl_joint, Ts_joint = jointly_calibrate_temperature(
         zt_val_large, zt_val_small, labels
     )
@@ -100,7 +103,12 @@ def main():
     # ---------------------------------------------------------
 
     log_event(">>> Processing Clean ImageNet Test Set...")
-    zl_clean, labels_clean = get_model_logits_imagenet_c(
+    # TODO: I'm pretty sure that the data is always loaded in the same order for all models, 
+    # but should double check this to ensure that the labels are aligned when we compute metrics 
+    # across variants. 
+    # For making duos, it's assumed e.g. that the i'th logits for small and large corresponds to 
+    # the same image.
+    zl_clean, yl_clean = get_model_logits_imagenet_c(
                                                     model_name=large_name, 
                                                     distortion="none", 
                                                     severity=0, 
@@ -109,7 +117,7 @@ def main():
                                                     num_workers=config['workers'], 
                                                     split="test"
     )
-    zs_clean, _ = get_model_logits_imagenet_c(
+    zs_clean, ys_clean = get_model_logits_imagenet_c(
         model_name=small_name, 
         distortion="none", 
         severity=0, 
@@ -118,18 +126,30 @@ def main():
         num_workers=config['workers'],
         split="test"
     )
-    tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, "none", [0], config['test_path'], config, ts=None
+    zt, yt_clean = get_tent_logits_imagenet_c(
+        model_name=large_name, 
+        distortion="none", 
+        severity=0, 
+        data_path=config['test_path'], 
+        cfg=config, 
+        ts=None
     )
-    tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], config, ts="naive"
+    zt_ts, yt_ts_clean = get_tent_logits_imagenet_c(
+        model_name=large_name, 
+        distortion="none",
+        severity=0,
+        data_path=config['test_path'], 
+        cfg=config, 
+        ts="naive"
     )
-    tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], config, ts="pts"
+    zt_pts, yt_pts_clean = get_tent_logits_imagenet_c(
+        model_name=large_name, 
+        distortion="none", 
+        severity=0, 
+        data_path=config['test_path'], 
+        cfg=config, 
+        ts="pts"
     )
-    zt = tent_logits_dict[0]
-    zt_ts = tent_logits_dict_ts[0]
-    zt_pts = tent_logits_dict_pts[0]
 
 
     # ---------------------------------------------------------
@@ -142,19 +162,23 @@ def main():
     zd_clean_pts = get_joint_pts_logits(joint_pts_model, zl_clean, zs_clean)
     
     variants_clean = {
-                "f_large": zl_clean, "f_small": zs_clean, 
-                "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
-                "f_large_PTS": zl_clean_pts, "f_small_PTS": zs_clean_pts,
-                "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2,
-                "Duo_Joint_PTS": zd_clean_pts,
-                "tent_f_large": zt,
-                "tent_f_large_TS_naive": zt_ts,
-                "tent_f_large_TS_pts": zt_pts,
+                "f_large": (zl_clean, yl_clean), 
+                "f_small": (zs_clean, ys_clean), 
+                "f_large_TS": (zl_clean / t_large_fixed, yl_clean), 
+                "f_small_TS": (zs_clean / t_small_fixed, ys_clean),
+                "f_large_PTS": (zl_clean_pts, yl_clean), 
+                "f_small_PTS": (zs_clean_pts, ys_clean),
+                "Duo_Joint_TS": ((zl_clean / Tl_joint + zs_clean / Ts_joint) / 2, yl_clean),
+                "Duo_Joint_PTS": (zd_clean_pts, yl_clean),
+                "tent_f_large": (zt, yt_clean),
+                "tent_f_large_TS_naive": (zt_ts, yt_ts_clean),
+                "tent_f_large_TS_pts": (zt_pts, yt_pts_clean),
     }
 
-    for name, logits in variants_clean.items():
+    for name, results in variants_clean.items():
 
-        metrics_dict = get_metrics_dict(probs=F.softmax(logits, dim=1), labels=labels_clean)
+        logits, labels = results
+        metrics_dict = get_metrics_dict(probs=F.softmax(logits, dim=1), labels=labels)
         
         res = {
             'large_model': large_name,
@@ -176,38 +200,64 @@ def main():
     log_event(">>> Processing ImageNet-C Corruptions...")
     for d_name in distortions:
         log_event(f"Distortion: {d_name}")
-        
-        tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts=None
-        )
-        tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts="naive"
-        )
-        tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts="pts"
-        )
-
         for sev in severities:
-            zl, labels = get_model_logits_imagenet_c(large_name, d_name, sev, config['data_path'], 
-                                                   batch_size=config['batch_size'], num_workers=config['workers'])
-            zs, _      = get_model_logits_imagenet_c(small_name, d_name, sev, config['data_path'], 
-                                                   batch_size=config['batch_size'], num_workers=config['workers'])
-            zt = tent_logits_dict[sev]
-            zt_ts = tent_logits_dict_ts[sev]
-            zt_pts = tent_logits_dict_pts[sev]
+            zl, yl = get_model_logits_imagenet_c(
+                                    model_name=large_name, 
+                                    distortion=d_name, 
+                                    severity=sev, 
+                                    data_path=config['data_path'], 
+                                    batch_size=config['batch_size'], 
+                                    num_workers=config['workers']
+                                    )
+            zs, ys      = get_model_logits_imagenet_c(
+                                    model_name=small_name, 
+                                    distortion=d_name, 
+                                    severity=sev, 
+                                    data_path=config['data_path'], 
+                                    batch_size=config['batch_size'], 
+                                    num_workers=config['workers']
+                                    )
+            zt, yt = get_tent_logits_imagenet_c(
+                                    model_name=large_name, 
+                                    distortion=d_name, 
+                                    severity=sev, 
+                                    data_path=config['data_path'], 
+                                    cfg=config, 
+                                    ts=None
+                                    )
+            zt_ts, yt_ts = get_tent_logits_imagenet_c(
+                model_name=large_name, 
+                distortion=d_name, 
+                severity=sev, 
+                data_path=config['data_path'], 
+                cfg=config, 
+                ts="naive"
+            )
+            zt_pts, yt_pts = get_tent_logits_imagenet_c(
+                model_name=large_name, 
+                distortion=d_name, 
+                severity=sev, 
+                data_path=config['data_path'], 
+                cfg=config, 
+                ts="pts"
+            )
 
             variants = {
-                "f_large": zl, "f_small": zs, 
-                "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
-                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
-                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
-                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
-                "tent_f_large": zt,
-                "tent_f_large_TS_naive": zt_ts,
-                "tent_f_large_TS_pts": zt_pts,
+                "f_large": (zl, yl), 
+                "f_small": (zs, ys), 
+                "f_large_TS": (zl / t_large_fixed, yl), 
+                "f_small_TS": (zs / t_small_fixed, ys),
+                "f_large_PTS": (get_pts_logits(large_pts_model, zl), yl), 
+                "f_small_PTS": (get_pts_logits(small_pts_model, zs), ys),
+                "Duo_Joint_TS": ((zl / Tl_joint + zs / Ts_joint) / 2, yl),
+                "Duo_Joint_PTS": (get_joint_pts_logits(joint_pts_model, zl, zs), yl),
+                "tent_f_large": (zt, yt),
+                "tent_f_large_TS_naive": (zt_ts, yt_ts),
+                "tent_f_large_TS_pts": (zt_pts, yt_pts),
             }
 
-            for name, logits in variants.items():
+            for name, results in variants.items():
+                logits, labels = results
                 metrics_dict = get_metrics_dict(probs=F.softmax(logits, dim=1), labels=labels)
                 
                 res = {

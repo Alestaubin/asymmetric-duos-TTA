@@ -1,5 +1,5 @@
 small_model: "resnet34"
-large_model: "wideresnet50_2"
+large_model: "convnext_base"
 data_path: "./data/imagenet-c"
 val_path: "./data/imagenet/val"
 test_path: "./data/imagenet/validation"
@@ -42,7 +42,7 @@ PTS:
     num_workers: 8
 TENT:
   MODEL:
-    NAME: WideResNet50
+    NAME: convnext_base
     EPISODIC: True
   TEST:
     BATCH_SIZE: 128

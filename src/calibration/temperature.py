@@ -88,7 +88,7 @@ def calibrate_temperature(logits, labels):
     """
     Finds the temperature that minimizes NLL on clean validation data.
     """
-    print("Starting temperature calibration...")  
+    # print("Starting temperature calibration...")  
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")  
     logits = logits.to(device)
     labels = labels.to(device)

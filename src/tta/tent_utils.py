@@ -1,13 +1,16 @@
+import os
 import torch
+import torch.nn as nn
 import dependencies.tent.tent as tent
-from src.utils.load_utils import pickle_cache
 import torch.optim as optim
 import torchvision.transforms as trn
 import torchvision.datasets as dset
-import os
-import torch.nn as nn
+
+from src.utils.load_utils import pickle_cache
 from src.utils.log_utils import log_event
 from src.calibration.pts import PTSWrapper, get_pts_model
+from src.models.model_loader import get_model
+from src.models.inference import get_model_logits_imagenet_c
 
 def setup_tent(model, cfg):
     """Set up tent adaptation.
@@ -20,12 +23,8 @@ def setup_tent(model, cfg):
     model = tent.configure_model(model)
     params, param_names = tent.collect_params(model)
 
-    # if not params:
-    #     raise ValueError("No parameters found for adaptation. Check if model has Norm layers.")
-
     optimizer = setup_optimizer(params, cfg)
     
-    # 4. Wrap in TENT
     tent_model = tent.Tent(model, optimizer,
                            steps=int(cfg["OPTIM"]["STEPS"]),
                            episodic=cfg["MODEL"]["EPISODIC"])
@@ -33,7 +32,6 @@ def setup_tent(model, cfg):
     print(f"params for adaptation: {param_names}")
     print(f"optimizer for adaptation: {optimizer}")
 
-    # log_event(f"Params for adaptation: {len(param_names)}")
     return tent_model
 
 
@@ -66,23 +64,20 @@ def setup_optimizer(params, cfg):
 
 # @pickle_cache("tent_logits_trajectory_cache")
 def get_tent_logits_imagenet_c(model_name, 
-                                distortion_name, 
-                                severities, 
+                                distortion, 
+                                severity, 
                                 data_path, 
-                                cfg: dict, 
+                                cfg: dict,
                                 ts=None):
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
     """
-    from src.models.model_loader import get_model
-    import torchvision.datasets as dset
-    import torchvision.transforms as trn
-    from src.models.inference import get_model_logits_imagenet_c
     assert ts in [None, "pts", 'naive']
-    episodic = cfg["TENT"]["MODEL"]["EPISODIC"]
-    log_event(f"Running TENT on {model_name} with distortion={distortion_name} | Severities={severities} | Episodic={episodic} | TS={ts}")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    episodic = cfg["TENT"]["MODEL"]["EPISODIC"]
+    log_event(f"Running TENT on {model_name} with distortion={distortion} | Severity={severity} | Episodic={episodic} | TS={ts}")
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_fresh = get_model(model_name, freeze = False)
 
     if ts == "pts":
@@ -112,12 +107,6 @@ def get_tent_logits_imagenet_c(model_name,
 
     tented_model = setup_tent(model_fresh, cfg["TENT"])
     tented_model = tented_model.to(device)
-    try:
-        log_event(f"tented model lr: {tented_model.optimizer.param_groups[0]['lr']}")
-    except Exception as e:
-        log_event(f"Error retrieving optimizer info: {e}")
-    trajectory_logits = {}
-    trajectory_labels = {}
 
     preprocess = trn.Compose([
         trn.CenterCrop(224),
@@ -125,41 +114,33 @@ def get_tent_logits_imagenet_c(model_name,
         trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    # Iterate only through the requested severities
-    for sev in severities:
-        log_event(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
-        if episodic:
-            log_event("Episodic TTA: Resetting model.")
-            # tented_model.reset()  # Reset model weights to initial state for episodic TTA
-        if distortion_name == "none" and sev == 0:
-            root_path = data_path # Assumes path to clean val images
-        else:
-            root_path = os.path.join(data_path, distortion_name, str(sev))
+    # tented_model.reset() 
+
+    if distortion == "none" and severity == 0:
+        root_path = data_path # Assumes path to clean val images
+    else:
+        root_path = os.path.join(data_path, distortion, str(severity))
+    
+    if not os.path.exists(root_path):
+        raise FileNotFoundError(f"Warning: Path {root_path} not found.")
         
-        if not os.path.exists(root_path):
-            log_event(f"Warning: Path {root_path} not found. Skipping.")
-            continue
+    dataset = dset.ImageFolder(root=root_path, transform=preprocess)
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=cfg["TENT"]["TEST"]["BATCH_SIZE"], 
+        num_workers=cfg["TENT"]["TEST"]["WORKERS"], pin_memory=True
+    )
 
-        dataset = dset.ImageFolder(root=root_path, transform=preprocess)
-        loader = torch.utils.data.DataLoader(
-            dataset, batch_size=cfg["TENT"]["TEST"]["BATCH_SIZE"], 
-            num_workers=cfg["TENT"]["TEST"]["WORKERS"], pin_memory=True
-        )
+    sev_logits = []
+    sev_labels = []
 
-        sev_logits = []
-        sev_labels = []
+    for data, target in loader:
+        data, target = data.to(device), target.to(device)
+        
+        with torch.enable_grad():
+            logits = tented_model(data)
+        
+        sev_logits.append(logits.detach().cpu())
+        sev_labels.append(target.cpu())
 
-        # TENT adapts by looking at batches sequentially
-        for data, target in loader:
-            data, target = data.to(device), target.to(device)
-            
-            with torch.enable_grad():
-                logits = tented_model(data)
-            
-            sev_logits.append(logits.detach().cpu())
-            sev_labels.append(target.cpu())
+    return torch.cat(sev_logits), torch.cat(sev_labels)
 
-        trajectory_logits[sev] = torch.cat(sev_logits)
-        trajectory_labels[sev] = torch.cat(sev_labels)
-
-    return trajectory_logits, trajectory_labels
