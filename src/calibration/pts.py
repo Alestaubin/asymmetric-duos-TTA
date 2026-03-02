@@ -5,9 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from src.models.inference import get_model_logits_imagenet_c
-# from src.tta.tent_utils import get_tent_logits_imagenet_c
 from src.utils.load_utils import pickle_cache
-
 
 class JointPTS(nn.Module):
     def __init__(self, num_classes=1000, hidden_dim=256):

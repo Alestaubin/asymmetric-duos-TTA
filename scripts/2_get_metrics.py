@@ -42,14 +42,14 @@ def main():
     # ---------------------------------------------------------
 
     zt_val_large, labels = get_model_logits_imagenet_c(
-                                                    model_name=large_name, 
-                                                    distortion="none", 
-                                                    severity=0,
-                                                    data_path=config['val_path'], 
-                                                    batch_size=config['batch_size'], 
-                                                    num_workers=config['workers'], 
-                                                    split="val"
-                                                    )
+                                                model_name=large_name, 
+                                                distortion="none", 
+                                                severity=0,
+                                                data_path=config['val_path'], 
+                                                batch_size=config['batch_size'], 
+                                                num_workers=config['workers'], 
+                                                split="val"
+                                                )
     zt_val_small, _ = get_model_logits_imagenet_c(
                                                 model_name=small_name, 
                                                 distortion="none", 
@@ -76,11 +76,11 @@ def main():
                                     lr=config['PTS']['SINGLE']['lr'], 
                                     batch_size=config['PTS']['SINGLE']['batch_size'])
     joint_pts_model = get_joint_pts_model(small_model=small_name, 
-                                        large_model=large_name, 
-                                        data_path=config['val_path'], 
-                                        epochs=config['PTS']['JOINT']['epochs'], 
-                                        lr=config['PTS']['JOINT']['lr'], 
-                                        batch_size=config['PTS']['JOINT']['batch_size'])
+                                    large_model=large_name, 
+                                    data_path=config['val_path'], 
+                                    epochs=config['PTS']['JOINT']['epochs'], 
+                                    lr=config['PTS']['JOINT']['lr'], 
+                                    batch_size=config['PTS']['JOINT']['batch_size'])
     # Naive TS temperatures
     log_event(f">>> Calibrating temperature for large model {large_name}")
     t_large_fixed = calibrate_temperature(
@@ -97,7 +97,6 @@ def main():
     log_event(f"Naive TS -> T_large: {t_large_fixed:.4f} | T_small: {t_small_fixed:.4f}")
     log_event(f"Naive Joint TS -> Tl_joint: {Tl_joint:.4f} | Ts_joint: {Ts_joint:.4f}")
 
-
     # ---------------------------------------------------------
     # Get the logits for the clean test set for both models 
     # ---------------------------------------------------------
@@ -109,48 +108,47 @@ def main():
     # For making duos, it's assumed e.g. that the i'th logits for small and large corresponds to 
     # the same image.
     zl_clean, yl_clean = get_model_logits_imagenet_c(
-                                                    model_name=large_name, 
-                                                    distortion="none", 
-                                                    severity=0, 
-                                                    data_path=config['test_path'], 
-                                                    batch_size=config['batch_size'], 
-                                                    num_workers=config['workers'], 
-                                                    split="test"
-    )
+                                            model_name=large_name, 
+                                            distortion="none", 
+                                            severity=0, 
+                                            data_path=config['test_path'], 
+                                            batch_size=config['batch_size'], 
+                                            num_workers=config['workers'], 
+                                            split="test"
+                                            )
     zs_clean, ys_clean = get_model_logits_imagenet_c(
-        model_name=small_name, 
-        distortion="none", 
-        severity=0, 
-        data_path=config['test_path'], 
-        batch_size=config['batch_size'], 
-        num_workers=config['workers'],
-        split="test"
-    )
+                                            model_name=small_name, 
+                                            distortion="none", 
+                                            severity=0, 
+                                            data_path=config['test_path'], 
+                                            batch_size=config['batch_size'], 
+                                            num_workers=config['workers'],
+                                            split="test"
+                                            )
     zt, yt_clean = get_tent_logits_imagenet_c(
-        model_name=large_name, 
-        distortion="none", 
-        severity=0, 
-        data_path=config['test_path'], 
-        cfg=config, 
-        ts=None
-    )
+                                            model_name=large_name, 
+                                            distortion="none", 
+                                            severity=0, 
+                                            data_path=config['test_path'], 
+                                            cfg=config, 
+                                            ts=None
+                                            )
     zt_ts, yt_ts_clean = get_tent_logits_imagenet_c(
-        model_name=large_name, 
-        distortion="none",
-        severity=0,
-        data_path=config['test_path'], 
-        cfg=config, 
-        ts="naive"
-    )
+                                            model_name=large_name, 
+                                            distortion="none",
+                                            severity=0,
+                                            data_path=config['test_path'], 
+                                            cfg=config, 
+                                            ts="naive"
+                                            )
     zt_pts, yt_pts_clean = get_tent_logits_imagenet_c(
-        model_name=large_name, 
-        distortion="none", 
-        severity=0, 
-        data_path=config['test_path'], 
-        cfg=config, 
-        ts="pts"
-    )
-
+                                            model_name=large_name, 
+                                            distortion="none", 
+                                            severity=0, 
+                                            data_path=config['test_path'], 
+                                            cfg=config, 
+                                            ts="pts"
+                                            )
 
     # ---------------------------------------------------------
     # Pass the logits through the PTS models to get calibrated logits for the clean test set
@@ -226,22 +224,21 @@ def main():
                                     ts=None
                                     )
             zt_ts, yt_ts = get_tent_logits_imagenet_c(
-                model_name=large_name, 
-                distortion=d_name, 
-                severity=sev, 
-                data_path=config['data_path'], 
-                cfg=config, 
-                ts="naive"
-            )
+                                    model_name=large_name, 
+                                    distortion=d_name, 
+                                    severity=sev, 
+                                    data_path=config['data_path'], 
+                                    cfg=config, 
+                                    ts="naive"
+                                    )
             zt_pts, yt_pts = get_tent_logits_imagenet_c(
-                model_name=large_name, 
-                distortion=d_name, 
-                severity=sev, 
-                data_path=config['data_path'], 
-                cfg=config, 
-                ts="pts"
-            )
-
+                                    model_name=large_name, 
+                                    distortion=d_name, 
+                                    severity=sev, 
+                                    data_path=config['data_path'], 
+                                    cfg=config, 
+                                    ts="pts"
+                                    )
             variants = {
                 "f_large": (zl, yl), 
                 "f_small": (zs, ys), 

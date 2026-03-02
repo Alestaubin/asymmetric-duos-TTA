@@ -30,8 +30,6 @@ def get_metrics_dict(probs, labels) -> dict:
     nll = log_loss(labels, probs, labels=list(range(num_classes)))
     ece = cal.get_ece(probs, labels, num_bins=15)
 
-
-
     metrics = {}
     metrics['ece'] = ece
     metrics['nll'] = nll

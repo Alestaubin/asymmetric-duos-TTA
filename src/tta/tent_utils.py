@@ -29,8 +29,8 @@ def setup_tent(model, cfg):
                            steps=int(cfg["OPTIM"]["STEPS"]),
                            episodic=cfg["MODEL"]["EPISODIC"])
     # print(f"model for adaptation: {model}")
-    print(f"params for adaptation: {param_names}")
-    print(f"optimizer for adaptation: {optimizer}")
+    log_event(f"Params for adaptation: {param_names}")
+    log_event(f"Optimizer for adaptation: {optimizer}")
 
     return tent_model
 
@@ -46,7 +46,6 @@ def setup_optimizer(params, cfg):
 
     For best results, try tuning the learning rate and batch size.
     """
-    print(f"Setting up optimizer: {cfg['OPTIM']['METHOD']} with LR={cfg['OPTIM']['LR']} and Steps={cfg['OPTIM']['STEPS']}")
     if cfg["OPTIM"]["METHOD"] == 'Adam':
         return optim.Adam(params,
                     lr=float(cfg["OPTIM"]["LR"]),
