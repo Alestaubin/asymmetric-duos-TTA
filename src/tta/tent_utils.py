@@ -17,25 +17,6 @@ def setup_tent(model, cfg):
     set up the optimizer, and then tent the model.
     """
 
-    # # 1. Disable all grads first
-    # model.requires_grad_(False)
-    
-    # # 2. Enable grads for normalization layers (BN for ResNet, LN for ConvNeXt)
-    # # This replaces tent.configure_model(model) logic to be more inclusive
-    # for m in model.modules():
-    #     if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
-    #         m.requires_grad_(True)
-    #         # Force buffers (like running mean/var) to update even in eval mode if needed
-    #         m.track_running_stats = True 
-            
-    # # 3. Collect only those enabled params
-    # params = []
-    # param_names = []
-    # for nm, p in model.named_parameters():
-    #     if p.requires_grad:
-    #         params.append(p)
-    #         param_names.append(nm)
-
     model = tent.configure_model(model)
     params, param_names = tent.collect_params(model)
 
