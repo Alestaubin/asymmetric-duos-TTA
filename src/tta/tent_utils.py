@@ -17,27 +17,30 @@ def setup_tent(model, cfg):
     set up the optimizer, and then tent the model.
     """
 
-    # 1. Disable all grads first
-    model.requires_grad_(False)
+    # # 1. Disable all grads first
+    # model.requires_grad_(False)
     
-    # 2. Enable grads for normalization layers (BN for ResNet, LN for ConvNeXt)
-    # This replaces tent.configure_model(model) logic to be more inclusive
-    for m in model.modules():
-        if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
-            m.requires_grad_(True)
-            # Force buffers (like running mean/var) to update even in eval mode if needed
-            m.track_running_stats = True 
+    # # 2. Enable grads for normalization layers (BN for ResNet, LN for ConvNeXt)
+    # # This replaces tent.configure_model(model) logic to be more inclusive
+    # for m in model.modules():
+    #     if isinstance(m, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+    #         m.requires_grad_(True)
+    #         # Force buffers (like running mean/var) to update even in eval mode if needed
+    #         m.track_running_stats = True 
             
-    # 3. Collect only those enabled params
-    params = []
-    param_names = []
-    for nm, p in model.named_parameters():
-        if p.requires_grad:
-            params.append(p)
-            param_names.append(nm)
-    
-    if not params:
-        raise ValueError("No parameters found for adaptation. Check if model has Norm layers.")
+    # # 3. Collect only those enabled params
+    # params = []
+    # param_names = []
+    # for nm, p in model.named_parameters():
+    #     if p.requires_grad:
+    #         params.append(p)
+    #         param_names.append(nm)
+
+    model = tent.configure_model(model)
+    params, param_names = tent.collect_params(model)
+
+    # if not params:
+    #     raise ValueError("No parameters found for adaptation. Check if model has Norm layers.")
 
     optimizer = setup_optimizer(params, cfg)
     
@@ -45,8 +48,11 @@ def setup_tent(model, cfg):
     tent_model = tent.Tent(model, optimizer,
                            steps=int(cfg["OPTIM"]["STEPS"]),
                            episodic=cfg["MODEL"]["EPISODIC"])
-    
-    log_event(f"Params for adaptation: {len(param_names)}")
+    # print(f"model for adaptation: {model}")
+    print(f"params for adaptation: {param_names}")
+    print(f"optimizer for adaptation: {optimizer}")
+
+    # log_event(f"Params for adaptation: {len(param_names)}")
     return tent_model
 
 
@@ -61,6 +67,7 @@ def setup_optimizer(params, cfg):
 
     For best results, try tuning the learning rate and batch size.
     """
+    print(f"Setting up optimizer: {cfg['OPTIM']['METHOD']} with LR={cfg['OPTIM']['LR']} and Steps={cfg['OPTIM']['STEPS']}")
     if cfg["OPTIM"]["METHOD"] == 'Adam':
         return optim.Adam(params,
                     lr=float(cfg["OPTIM"]["LR"]),
@@ -76,7 +83,7 @@ def setup_optimizer(params, cfg):
     else:
         raise NotImplementedError
 
-@pickle_cache("tent_logits_trajectory_cache")
+# @pickle_cache("tent_logits_trajectory_cache")
 def get_tent_logits_imagenet_c(model_name, 
                                 distortion_name, 
                                 severities, 
@@ -85,13 +92,12 @@ def get_tent_logits_imagenet_c(model_name,
                                 ts=None):
     """
     Caches the adaptation trajectory for a SPECIFIC list of severities.
-    Preserves model weights across the sequence for continual adaptation.
     """
     from src.models.model_loader import get_model
     import torchvision.datasets as dset
     import torchvision.transforms as trn
-    assert ts in [None, "pts", 'naive']
     from src.models.inference import get_model_logits_imagenet_c
+    assert ts in [None, "pts", 'naive']
     episodic = cfg["TENT"]["MODEL"]["EPISODIC"]
     log_event(f"Running TENT on {model_name} with distortion={distortion_name} | Severities={severities} | Episodic={episodic} | TS={ts}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -125,7 +131,10 @@ def get_tent_logits_imagenet_c(model_name,
 
     tented_model = setup_tent(model_fresh, cfg["TENT"])
     tented_model = tented_model.to(device)
-
+    try:
+        log_event(f"tented model lr: {tented_model.optimizer.param_groups[0]['lr']}")
+    except Exception as e:
+        log_event(f"Error retrieving optimizer info: {e}")
     trajectory_logits = {}
     trajectory_labels = {}
 
@@ -140,7 +149,7 @@ def get_tent_logits_imagenet_c(model_name,
         log_event(f"--- TTA Adaptation: {distortion_name} | Severity {sev} ---")
         if episodic:
             log_event("Episodic TTA: Resetting model.")
-            tented_model.reset()  # Reset model weights to initial state for episodic TTA
+            # tented_model.reset()  # Reset model weights to initial state for episodic TTA
         if distortion_name == "none" and sev == 0:
             root_path = data_path # Assumes path to clean val images
         else:

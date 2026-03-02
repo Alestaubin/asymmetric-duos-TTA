@@ -9,7 +9,7 @@ from src.models.model_loader import get_model
 from src.utils.load_utils import pickle_cache
 
 
-@pickle_cache("logits_cache")
+# @pickle_cache("logits_cache")
 def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, batch_size=128, num_workers=4, split="test"):
     """
     Extracts or loads cached logits for a specific model/distortion combo.

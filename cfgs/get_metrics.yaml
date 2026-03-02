@@ -11,8 +11,8 @@ corruption:
     # - 1
     # - 2
     - 3
-    - 4
-    - 5
+    # - 4
+    # - 5
   distortions:
     - 'gaussian_noise'
     # - 'shot_noise'
@@ -51,5 +51,5 @@ TENT:
     METHOD: Adam
     STEPS: 1
     BETA: 0.9
-    LR: 1e-5
+    LR: 0
     WD: 0.

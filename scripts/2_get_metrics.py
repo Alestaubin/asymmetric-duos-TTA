@@ -142,11 +142,11 @@ def main():
     zd_clean_pts = get_joint_pts_logits(joint_pts_model, zl_clean, zs_clean)
     
     variants_clean = {
-                "f_large": zl, "f_small": zs, 
-                "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
-                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
-                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
-                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
+                "f_large": zl_clean, "f_small": zs_clean, 
+                "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
+                "f_large_PTS": zl_clean_pts, "f_small_PTS": zs_clean_pts,
+                "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2,
+                "Duo_Joint_PTS": zd_clean_pts,
                 "tent_f_large": zt,
                 "tent_f_large_TS_naive": zt_ts,
                 "tent_f_large_TS_pts": zt_pts,
@@ -165,7 +165,6 @@ def main():
             'accuracy': metrics_dict['accuracy'], 
             'nll': metrics_dict['nll'], 
             'ece': metrics_dict['ece'],
-            'tim_ece': metrics_dict['tim_ece'],
             'f1': metrics_dict['f1'],
             'brier': metrics_dict['brier']
         }
@@ -220,7 +219,6 @@ def main():
                     'accuracy': metrics_dict['accuracy'], 
                     'nll': metrics_dict['nll'], 
                     'ece': metrics_dict['ece'],
-                    'tim_ece': metrics_dict['tim_ece'],
                     'f1': metrics_dict['f1'],
                     'brier': metrics_dict['brier']
                 }
