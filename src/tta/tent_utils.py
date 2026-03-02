@@ -61,7 +61,7 @@ def setup_optimizer(params, cfg):
     else:
         raise NotImplementedError
 
-# @pickle_cache("tent_logits_trajectory_cache")
+@pickle_cache("tent_logits_trajectory_cache")
 def get_tent_logits_imagenet_c(model_name, 
                                 distortion, 
                                 severity, 

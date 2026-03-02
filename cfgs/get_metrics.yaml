@@ -1,5 +1,5 @@
 small_model: "resnet34"
-large_model: "convnext_base"
+large_model: "wide_resnet50_2"
 data_path: "./data/imagenet-c"
 val_path: "./data/imagenet/val"
 test_path: "./data/imagenet/validation"
@@ -51,5 +51,5 @@ TENT:
     METHOD: Adam
     STEPS: 1
     BETA: 0.9
-    LR: 0.0001
+    LR: 1e-5
     WD: 0.

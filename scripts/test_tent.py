@@ -43,14 +43,15 @@ def main():
 
     # log_event(">>> Running base model without tent...")
     # # Get the base model logits for the target distribution (no adaptation)
-    # logits_base, labels = get_model_logits_imagenet_c(
-    #     model_name=model_name, distortion=distortion, severity=severity, 
-    #     data_path=config['data_path']
-    # )
-    # metrics_base = get_metrics_dict(F.softmax(logits_base, dim=-1), labels)
-    # print(metrics_base)
-    # acc_base = (logits_base.max(1)[1] == labels).float().mean().item()
-    # ent_base = get_entropy(logits_base)
+    logits_base, labels = get_model_logits_imagenet_c(
+        model_name=model_name, distortion=distortion, severity=severity, 
+        data_path=config['data_path']
+    )
+    print("Base model metrics:")
+    metrics_base = get_metrics_dict(F.softmax(logits_base, dim=-1), labels)
+    print(metrics_base)
+    acc_base = (logits_base.max(1)[1] == labels).float().mean().item()
+    ent_base = get_entropy(logits_base)
 
     # ---------------------------------------------------------
     # TEST 1: TENT WITHOUT TS
