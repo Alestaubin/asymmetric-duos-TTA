@@ -1,0 +1,7 @@
+small_model: "resnet34"
+large_model: "wide_resnet50_2"
+data_path: "./data/imagenet-c"
+val_path: "./data/imagenet/val"
+test_path: "./data/imagenet/validation"
+batch_size: 128
+workers: 8

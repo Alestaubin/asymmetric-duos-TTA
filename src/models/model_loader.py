@@ -2,6 +2,7 @@ import torch
 import torchvision.models as models
 import os
 import sys
+from src.utils.log_utils import log_event
 
 def get_model(model_name, freeze=True):
     """
@@ -9,20 +10,21 @@ def get_model(model_name, freeze=True):
     """
     model_name = model_name.lower().strip()
     
-    if "resnet50" in model_name:
+    if model_name == "resnet50":
         model = load_resnet50()
-    elif "convnext_base" in model_name:
+    elif model_name == "convnext_base":
         model = load_convnext_base()
-    elif "resnet18" in model_name:
+    elif model_name == "resnet18":
         model = load_resnet18()
-    elif "resnet34" in model_name:
+    elif model_name == "resnet34":
         model = load_resnet34()
-    elif "wideresnet50_2" in model_name:
+    elif model_name == "wide_resnet50_2":
         model = load_wideresnet50_2()
     else:
         raise ValueError(f"Model {model_name} not recognized. Add it to load_models.py")
         
     if freeze:
+        log_event(f"WARNING: Freezing all parameters in {model_name}...")
         for param in model.parameters():
             param.requires_grad = False
     return model

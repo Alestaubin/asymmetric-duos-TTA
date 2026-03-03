@@ -41,13 +41,12 @@ def main():
     log_event(f"Model: {model_name} | Target: {distortion} Sev {severity}")
     log_event("="*60)
 
-    # log_event(">>> Running base model without tent...")
-    # # Get the base model logits for the target distribution (no adaptation)
+    log_event(">>> Running base model without tent...")
+    # Get the base model logits for the target distribution (no adaptation)
     logits_base, labels = get_model_logits_imagenet_c(
         model_name=model_name, distortion=distortion, severity=severity, 
         data_path=config['data_path']
     )
-    print("Base model metrics:")
     metrics_base = get_metrics_dict(F.softmax(logits_base, dim=-1), labels)
     print(metrics_base)
     acc_base = (logits_base.max(1)[1] == labels).float().mean().item()

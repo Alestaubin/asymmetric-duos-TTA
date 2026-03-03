@@ -30,6 +30,7 @@ def setup_tent(model, cfg):
                            episodic=cfg["MODEL"]["EPISODIC"])
     # print(f"model for adaptation: {model}")
     log_event(f"Params for adaptation: {param_names}")
+    log_event(f"Number of params: {len(param_names)}")
     log_event(f"Optimizer for adaptation: {optimizer}")
 
     return tent_model
@@ -61,7 +62,7 @@ def setup_optimizer(params, cfg):
     else:
         raise NotImplementedError
 
-@pickle_cache("tent_logits_trajectory_cache")
+# @pickle_cache("tent_logits_trajectory_cache")
 def get_tent_logits_imagenet_c(model_name, 
                                 distortion, 
                                 severity, 
