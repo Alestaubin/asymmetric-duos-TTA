@@ -36,69 +36,29 @@ def main():
     severity = 3 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    log_event("="*60)
-    log_event(f"INVESTIGATION: TENT vs TENT+TS divergence")
-    log_event(f"Model: {model_name} | Target: {distortion} Sev {severity}")
-    log_event("="*60)
+    # log_event(">>> Running base model without tent...")
+    # # Get the base model logits for the target distribution (no adaptation)
+    # logits_base, labels = get_model_logits_imagenet_c(
+    #     model_name=model_name, distortion=distortion, severity=severity, 
+    #     data_path=config['data_path']
+    # )
+    # metrics_base = get_metrics_dict(F.softmax(logits_base, dim=-1), labels)
+    # print(metrics_base)
 
-    log_event(">>> Running base model without tent...")
-    # Get the base model logits for the target distribution (no adaptation)
-    logits_base, labels = get_model_logits_imagenet_c(
-        model_name=model_name, distortion=distortion, severity=severity, 
-        data_path=config['data_path']
-    )
-    metrics_base = get_metrics_dict(F.softmax(logits_base, dim=-1), labels)
-    print(metrics_base)
-    acc_base = (logits_base.max(1)[1] == labels).float().mean().item()
-    ent_base = get_entropy(logits_base)
-
-    # ---------------------------------------------------------
-    # TEST 1: TENT WITHOUT TS
-    # ---------------------------------------------------------
     log_event(">>> Running TENT (Standard)...")
     start = time()
     # We use a dummy ts value or force a cache skip if necessary to ensure fresh results
-    logits_raw, labels = get_tent_logits_imagenet_c(
-        model_name, distortion, severity, config['data_path'], config, ts=None
-    )
-    acc_raw = (logits_raw.max(1)[1] == labels).float().mean().item()
-    ent_raw = get_entropy(logits_raw)
-    metrics_raw = get_metrics_dict(F.softmax(logits_raw, dim=-1), labels)
-    print(metrics_raw)
-    log_event(f"Standard TENT -> Acc: {acc_raw:.4f} | Avg Entropy: {ent_raw:.4f} | Time: {time()-start:.2f}s")
-
-    # ---------------------------------------------------------
-    # TEST 2: TENT WITH NAIVE TS
-    # ---------------------------------------------------------
-    # log_event(">>> Running TENT (Naive TS)...")
-    # start = time()
-    # logits_ts_dict, _ = get_tent_logits_imagenet_c(
-    #     model_name, distortion, [severity], config['data_path'], config, ts="naive"
-    # )
-    # logits_ts = logits_ts_dict[severity]
-    # acc_ts = (logits_ts.max(1)[1] == labels).float().mean().item()
-    # ent_ts = get_entropy(logits_ts)
-    # metrics_ts = get_metrics_dict(F.softmax(logits_ts, dim=-1), labels)
-    # print(metrics_ts)
-    # log_event(f"TS-TENT       -> Acc: {acc_ts:.4f} | Avg Entropy: {ent_ts:.4f} | Time: {time()-start:.2f}s")
-
-    # # ---------------------------------------------------------
-    # # THE VERDICT
-    # # ---------------------------------------------------------
-    # log_event("="*60)
-    # diff = torch.abs(logits_raw - logits_ts).sum().item()
-    
-    # if diff == 0:
-    #     log_event("CRITICAL: The logits are IDENTICAL to the last decimal.")
-    #     log_event("Check: Is the pickle_cache hashing the 'ts' argument correctly?")
-    # elif acc_raw == acc_ts:
-    #     log_event("DIVERGENCE DETECTED: Logits differ, but accuracy is identical.")
-    #     log_event(f"L1 Logit Difference: {diff:.4f}")
-    #     log_event("Conclusion: TS is working, but it's not strong enough to flip predictions yet.")
-    # else:
-    #     log_event("SUCCESS: Adaptation paths have diverged.")
-    #     log_event(f"Accuracy Delta: {abs(acc_raw - acc_ts):.4f}")
-    # log_event("="*60)
+    for ts in [None, "naive", "pts"]:
+        zt, yt_clean = get_tent_logits_imagenet_c(
+                                                model_name=model_name, 
+                                                distortion=distortion, 
+                                                severity=severity, 
+                                                data_path=config['data_path'], 
+                                                cfg=config, 
+                                                ts=ts
+                                                )
+        metrics_raw = get_metrics_dict(F.softmax(zt, dim=-1), yt_clean)
+        print(f"TS={ts}: {metrics_raw}")
 
 if __name__ == "__main__":
     main()
