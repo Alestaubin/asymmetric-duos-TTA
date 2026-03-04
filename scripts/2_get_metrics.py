@@ -14,13 +14,15 @@ from src.utils.log_utils import log_event
 from src.calibration.pts import get_joint_pts_model, get_pts_logits, get_pts_model, get_joint_pts_logits
 from src.utils.load_utils import save_result_to_csv
 
+
 def main():
     parser = argparse.ArgumentParser(description='Getting metrics for PTS and TS variants')
     parser.add_argument('--config', type=str, default='cfgs/get_metrics.yaml', help='Path to config file')
     cmd_args = parser.parse_args()
     
     config = load_config(cmd_args.config)
-    
+    tent_cfg = load_config("cfgs/tent.yaml")
+
     large_name = config['large_model']
     small_name = config['small_model']
     distortions = config['corruption']['distortions']
@@ -130,7 +132,7 @@ def main():
                                             distortion="none", 
                                             severity=0, 
                                             data_path=config['test_path'], 
-                                            cfg=config, 
+                                            cfg=tent_cfg, 
                                             ts=None
                                             )
     zt_ts, yt_ts_clean = get_tent_logits_imagenet_c(
@@ -138,7 +140,7 @@ def main():
                                             distortion="none",
                                             severity=0,
                                             data_path=config['test_path'], 
-                                            cfg=config, 
+                                            cfg=tent_cfg, 
                                             ts="naive"
                                             )
     zt_pts, yt_pts_clean = get_tent_logits_imagenet_c(
@@ -146,7 +148,7 @@ def main():
                                             distortion="none", 
                                             severity=0, 
                                             data_path=config['test_path'], 
-                                            cfg=config, 
+                                            cfg=tent_cfg, 
                                             ts="pts"
                                             )
 
@@ -220,7 +222,7 @@ def main():
                                     distortion=d_name, 
                                     severity=sev, 
                                     data_path=config['data_path'], 
-                                    cfg=config, 
+                                    cfg=tent_cfg, 
                                     ts=None
                                     )
             zt_ts, yt_ts = get_tent_logits_imagenet_c(
@@ -228,7 +230,7 @@ def main():
                                     distortion=d_name, 
                                     severity=sev, 
                                     data_path=config['data_path'], 
-                                    cfg=config, 
+                                    cfg=tent_cfg, 
                                     ts="naive"
                                     )
             zt_pts, yt_pts = get_tent_logits_imagenet_c(
@@ -236,7 +238,7 @@ def main():
                                     distortion=d_name, 
                                     severity=sev, 
                                     data_path=config['data_path'], 
-                                    cfg=config, 
+                                    cfg=tent_cfg, 
                                     ts="pts"
                                     )
             variants = {
@@ -260,9 +262,9 @@ def main():
                 res = {
                     'large_model': large_name,
                     'small_model': small_name,
-                    'distortion': d_name, 
-                    'severity': sev, 
-                    'variant': name, 
+                    'distortion': d_name,
+                    'severity': sev,
+                    'variant': name,
                     'accuracy': metrics_dict['accuracy'], 
                     'nll': metrics_dict['nll'], 
                     'ece': metrics_dict['ece'],

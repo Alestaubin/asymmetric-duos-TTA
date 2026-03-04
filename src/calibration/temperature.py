@@ -49,7 +49,7 @@ def jointly_calibrate_temperature(logits_l, logits_s, labels):
     print("=====Joint calibration complete and models wrapped.=====")
     return final_Tl,final_Ts
 
-@pickle_cache("calibrated_temperatures")
+# @pickle_cache("calibrated_temperatures")
 def calibrate_temperature(logits, labels):
     """
     Finds the temperature that minimizes NLL on clean validation data.

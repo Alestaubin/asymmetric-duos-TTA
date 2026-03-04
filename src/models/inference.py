@@ -49,7 +49,7 @@ def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, bat
     )
 
     all_logits, all_labels = [], []
-    
+    print(f"Extracting logits for {model_name} | Distortion: {distortion} | Severity: {severity} | Split: {split}")
     # 3. Inference Loop
     with torch.no_grad():
         for data, target in loader:
