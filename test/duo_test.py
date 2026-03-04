@@ -3,7 +3,7 @@ import torch
 import pandas as pd
 from itertools import product
 from src.utils.load_utils import load_config, save_result_to_csv
-from src.calibration.pts import get_joint_pts_model, get_joint_pts_logits
+from src.calibration.pts import get_joint_pts_model, get_joint_pts_logits, get_joint_pts_model_old
 from src.calibration.temperature import jointly_calibrate_temperature
 from src.utils.metrics import get_metrics_dict
 from src.utils.log_utils import log_event
@@ -15,12 +15,12 @@ def main():
     config = load_config('cfgs/get_metrics.yaml')
     large_model = config['large_model']
     small_model = config['small_model']
-    val_path = config['val_path']
-    
+    data_path = config['val_path']
+    val_path = config['data_path'] 
+
     # 2. Define the Hyperparameter Grid
     # We focus on LR and Hidden Dim as these most impact JPTS stability
     lrs = [1e-3, 5e-4, 1e-4]
-    hidden_dims = [128, 256, 512]
     batch_sizes = [128, 256]
     
     output_path = "./results/jpts_tuning_results.csv"
@@ -53,15 +53,16 @@ def main():
                                                 )
 
     # 3. Grid Search Loop
-    for lr, bs in product(lrs, hidden_dims, batch_sizes):
+    for lr, bs in product(lrs, batch_sizes):
         
         # We pass h_dim if your JointPTS class supports it as an argument
         # Assuming you've updated the class to accept hidden_dim
-        model, loss = get_joint_pts_model(
+        pts_model, loss = get_joint_pts_model(
             small_model=small_model,
             large_model=large_model,
-            data_path=val_path,
-            epochs=100, # Max epochs; early stopping will handle the rest
+            data_path=data_path,
+            val_path=val_path,
+            epochs=100, 
             lr=lr,
             batch_size=bs,
             num_workers=config['workers'],
@@ -69,7 +70,7 @@ def main():
         )
         log_event(f"Completed: LR={lr}, Batch={bs} | Loss: {loss:.6f}")
         
-        zd_pts = get_joint_pts_logits(model, zt_large, zt_small)
+        zd_pts = get_joint_pts_logits(pts_model, zt_large, zt_small)
         metrics = get_metrics_dict(F.softmax(zd_pts, dim=-1), labels)
         log_event(f"Metrics for LR={lr}, Batch={bs}: {metrics}")
         acc = metrics['accuracy']

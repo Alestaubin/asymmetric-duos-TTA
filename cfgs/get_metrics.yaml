@@ -31,7 +31,7 @@ corruption:
     - 'jpeg_compression'
 PTS:
   JOINT:
-    lr: 0.0005
+    lr: 0.0001
     epochs: 50
     batch_size: 128
     num_workers: 8
@@ -40,17 +40,3 @@ PTS:
     epochs: 50
     batch_size: 128
     num_workers: 8
-TENT:
-  MODEL:
-    EPISODIC: True
-    ADAPTATION: TENT
-    ARCH: Standard
-  TEST:
-    BATCH_SIZE: 128
-    WORKERS: 8
-  OPTIM:
-    METHOD: Adam
-    STEPS: 1
-    BETA: 0.9
-    LR: 1e-3
-    WD: 0.

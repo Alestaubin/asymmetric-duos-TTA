@@ -25,7 +25,7 @@ class JointPTS(nn.Module):
         )
 
     def forward(self, zl, zs):
-        # Concatenate full unnormalized logit tuples [z_l, z_s]
+        # Concatenate logit tuples 
         x = torch.cat([zl, zs], dim=1)
         temps = self.net(x)
         # Add a small epsilon (1e-6) to avoid exactly zero temperatures
@@ -72,8 +72,68 @@ class PTSWrapper(nn.Module):
         scaled_logits = logits / T
         return scaled_logits
 
+def get_joint_pts_model_old(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128):
+    """
+    Trains JointPTS using the full logit tuples and Squared Error Loss.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    num_classes = 1000 # Assume ImageNet 1000 classes
+    
+    # TODO: don't make the num_workers hardcoded here. 
+    logits_l, labels = get_model_logits_imagenet_c(large_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
+    logits_s, _      = get_model_logits_imagenet_c(small_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
+    
+    # Prepare one-hot labels for the indicator function I_nc
+    labels_one_hot = F.one_hot(labels, num_classes=num_classes).float().to(device)
+    
+    logits_l, logits_s = logits_l.to(device), logits_s.to(device)
+    
+    dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
+    model = JointPTS(num_classes=num_classes).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
+    
+    print(f"--- Training Full Joint PTS | Input Dim: {num_classes*2} ---")
+    model.train()
+    
+    for epoch in range(epochs):
+        total_loss = 0
+        for b_zl, b_zs, b_labels in loader:
+            optimizer.zero_grad()
+            
+            Tl, Ts = model(b_zl, b_zs)
+            
+            # Compute Joint Scaled Logits as per equation: 
+            # 1/2 * [ (zl / Tl) + (zs / Ts) ]
+            joint_logits = 0.5 * ( (b_zl / Tl) + (b_zs / Ts) )
+            
+            # 3. Softmax probabilities
+            probs = F.softmax(joint_logits, dim=1)
+            
+            # Squared Error Loss L_theta
+            # L = 1/N * sum_n( sum_c( (I_nc - sigma_SM_nc)^2 ) )
+            loss = torch.sum((b_labels - probs)**2, dim=1).mean()
+            
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+            
+        if (epoch + 1) % 5 == 0:
+            print(f"Epoch {epoch+1:02d} | Squared Error Loss: {total_loss/len(loader):.6f}")
+            
+    return model.eval(), total_loss / len(loader)
+
 @pickle_cache("joint_pts_model_cache")
-def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128, num_workers=8, patience=5):
+def get_joint_pts_model(small_model, 
+                        large_model, 
+                        data_path, 
+                        val_path=None, 
+                        epochs=50, 
+                        lr=1e-4, 
+                        batch_size=128, 
+                        num_workers=8, 
+                        patience=5):
     """
     Trains JointPTS using full logit tuples and Squared Error Loss with Early Stopping.
     """
@@ -85,13 +145,20 @@ def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4,
     logits_s, _      = get_model_logits_imagenet_c(small_model, "none", 0, data_path, batch_size=batch_size, num_workers=num_workers)
     
     labels_one_hot = F.one_hot(labels, num_classes=num_classes).float()
-    
-    # 2. Split into Train and Internal Val (80/20) to monitor convergence
-    full_dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
-    train_size = int(0.8 * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
-    
+
+    if val_path is None:
+        full_dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
+        train_size = int(0.8 * len(full_dataset))
+        val_size = len(full_dataset) - train_size
+        train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    else:
+        # Load validation data from val_path
+        logits_l_val, labels_val = get_model_logits_imagenet_c(large_model, "gaussian_noise", 3, val_path, batch_size=batch_size, num_workers=num_workers)
+        logits_s_val, _         = get_model_logits_imagenet_c(small_model, "gaussian_noise", 3, val_path, batch_size=batch_size, num_workers=num_workers)
+        labels_val_one_hot = F.one_hot(labels_val, num_classes=num_classes).float()
+        train_dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
+        val_dataset = TensorDataset(logits_l_val, logits_s_val, labels_val_one_hot)
+        
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     

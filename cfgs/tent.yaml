@@ -1,6 +1,5 @@
 val_path: "./data/imagenet/val"
 data_path: "./data/imagenet-c"
-
 TENT:
   MODEL:
     ADAPTATION: "tent"
@@ -16,7 +15,6 @@ TENT:
     LR: 0.00001
     WD: 0.0
   VAL_PATH: "./data/imagenet/val"
-
 PTS:
   SINGLE:
     epochs: 50
