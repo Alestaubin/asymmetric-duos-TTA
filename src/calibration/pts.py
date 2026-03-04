@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from src.models.inference import get_model_logits_imagenet_c
 from src.utils.load_utils import pickle_cache
+import copy
 
 class JointPTS(nn.Module):
     def __init__(self, num_classes=1000, hidden_dim=256):

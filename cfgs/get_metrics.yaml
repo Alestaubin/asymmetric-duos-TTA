@@ -31,7 +31,7 @@ corruption:
     - 'jpeg_compression'
 PTS:
   JOINT:
-    lr: 0.0001
+    lr: 0.0005
     epochs: 50
     batch_size: 128
     num_workers: 8
