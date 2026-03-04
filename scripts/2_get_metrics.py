@@ -77,7 +77,7 @@ def main():
                                     epochs=config['PTS']['SINGLE']['epochs'], 
                                     lr=config['PTS']['SINGLE']['lr'], 
                                     batch_size=config['PTS']['SINGLE']['batch_size'])
-    joint_pts_model = get_joint_pts_model(small_model=small_name, 
+    joint_pts_model, _ = get_joint_pts_model(small_model=small_name, 
                                     large_model=large_name, 
                                     data_path=config['val_path'], 
                                     epochs=config['PTS']['JOINT']['epochs'], 

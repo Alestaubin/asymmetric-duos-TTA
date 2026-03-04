@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, random_split
 from src.models.inference import get_model_logits_imagenet_c
 from src.utils.load_utils import pickle_cache
 
@@ -20,7 +20,7 @@ class JointPTS(nn.Module):
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Linear(hidden_dim // 2, 2), # Outputs [T_l, T_s]
-            nn.Softplus()                 # Ensures T > 0
+            nn.Softplus()
         )
 
     def forward(self, zl, zs):
@@ -72,67 +72,100 @@ class PTSWrapper(nn.Module):
         return scaled_logits
 
 @pickle_cache("joint_pts_model_cache")
-def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128):
+def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128, num_workers=8, patience=5):
     """
-    Trains JointPTS using the full logit tuples and Squared Error Loss.
+    Trains JointPTS using full logit tuples and Squared Error Loss with Early Stopping.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    num_classes = 1000 # Assume ImageNet 1000 classes
+    num_classes = 1000 
     
-    # TODO: don't make the num_workers hardcoded here. 
-    logits_l, labels = get_model_logits_imagenet_c(large_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
-    logits_s, _      = get_model_logits_imagenet_c(small_model, "none", 0, data_path, batch_size=batch_size, num_workers=4)
+    # 1. Fetch Logits
+    logits_l, labels = get_model_logits_imagenet_c(large_model, "none", 0, data_path, batch_size=batch_size, num_workers=num_workers)
+    logits_s, _      = get_model_logits_imagenet_c(small_model, "none", 0, data_path, batch_size=batch_size, num_workers=num_workers)
     
-    # Prepare one-hot labels for the indicator function I_nc
-    labels_one_hot = F.one_hot(labels, num_classes=num_classes).float().to(device)
+    labels_one_hot = F.one_hot(labels, num_classes=num_classes).float()
     
-    logits_l, logits_s = logits_l.to(device), logits_s.to(device)
+    # 2. Split into Train and Internal Val (80/20) to monitor convergence
+    full_dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
+    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
     
-    dataset = TensorDataset(logits_l, logits_s, labels_one_hot)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
     model = JointPTS(num_classes=num_classes).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     
-    print(f"--- Training Full Joint PTS | Input Dim: {num_classes*2} ---")
-    model.train()
+    # Early Stopping Variables
+    best_loss = float('inf')
+    best_model_state = None
+    epochs_no_improve = 0
+    
+    print(f"--- Training Full Joint PTS | Max Epochs: {epochs} | Input Dim: {num_classes*2} ---")
     
     for epoch in range(epochs):
-        total_loss = 0
-        for b_zl, b_zs, b_labels in loader:
+        # Training Phase
+        model.train()
+        train_loss = 0
+        for b_zl, b_zs, b_labels in train_loader:
+            b_zl, b_zs, b_labels = b_zl.to(device), b_zs.to(device), b_labels.to(device)
             optimizer.zero_grad()
             
             Tl, Ts = model(b_zl, b_zs)
-            
-            # Compute Joint Scaled Logits as per equation: 
-            # 1/2 * [ (zl / Tl) + (zs / Ts) ]
-            joint_logits = 0.5 * ( (b_zl / Tl) + (b_zs / Ts) )
-            
-            # 3. Softmax probabilities
+            joint_logits = 0.5 * ((b_zl / Tl) + (b_zs / Ts))
             probs = F.softmax(joint_logits, dim=1)
-            
-            # Squared Error Loss L_theta
-            # L = 1/N * sum_n( sum_c( (I_nc - sigma_SM_nc)^2 ) )
             loss = torch.sum((b_labels - probs)**2, dim=1).mean()
             
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
+            train_loss += loss.item()
             
-        if (epoch + 1) % 5 == 0:
-            print(f"Epoch {epoch+1:02d} | Squared Error Loss: {total_loss/len(loader):.6f}")
+        # Validation Phase
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for b_zl, b_zs, b_labels in val_loader:
+                b_zl, b_zs, b_labels = b_zl.to(device), b_zs.to(device), b_labels.to(device)
+                Tl, Ts = model(b_zl, b_zs)
+                joint_logits = 0.5 * ((b_zl / Tl) + (b_zs / Ts))
+                probs = F.softmax(joint_logits, dim=1)
+                loss = torch.sum((b_labels - probs)**2, dim=1).mean()
+                val_loss += loss.item()
+        
+        avg_train_loss = train_loss / len(train_loader)
+        avg_val_loss = val_loss / len(val_loader)
+        
+        if (epoch + 1) % 5 == 0 or epoch == 0:
+            print(f"Epoch {epoch+1:02d} | Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f}")
             
-    return model.eval()
+        # Early Stopping Logic
+        if avg_val_loss < best_loss:
+            best_loss = avg_val_loss
+            best_model_state = copy.deepcopy(model.state_dict())
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+            
+        if epochs_no_improve >= patience:
+            print(f"Early stopping triggered at epoch {epoch+1}. Best Val Loss: {best_loss:.6f}")
+            break
+            
+    # Load the best weights back into the model before returning
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+            
+    return model.eval(), best_loss
 
 @pickle_cache("pts_model_cache")
-def get_pts_model(model_name, data_path, epochs=50, lr=1e-4, batch_size=128):
+def get_pts_model(model_name, data_path, epochs=50, lr=1e-4, batch_size=128, num_workers=8):
     """
     Trains PTS using only the large model logits and Squared Error Loss.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_classes = 1000 # Assume ImageNet 1000 classes
     
-    logits, labels = get_model_logits_imagenet_c(model_name, "none", 0, data_path, batch_size=batch_size, num_workers=4)
+    logits, labels = get_model_logits_imagenet_c(model_name, "none", 0, data_path, batch_size=batch_size, num_workers=num_workers)
     
     # Prepare one-hot labels for the indicator function I_nc
     labels_one_hot = F.one_hot(labels, num_classes=num_classes).float().to(device)

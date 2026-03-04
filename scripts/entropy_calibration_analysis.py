@@ -50,10 +50,10 @@ def main():
     # 4. Get TENT Adapted Data (Standard and with Naive TS)
     log_event(">>> Running TTA Adaptation...")
     # Standard TENT (Uncalibrated start)
-    zt_dict_raw, _ = get_tent_logits_imagenet_c(large_name, distortion, [severity], config['data_path'], config, ts=None)
+    zt_dict_raw, _ = get_tent_logits_imagenet_c(large_name, distortion, severity, config['data_path'], config, ts=None)
     # TENT with Naive TS (Calibrated start)
-    zt_dict_ts, _ = get_tent_logits_imagenet_c(large_name, distortion, [severity], config['data_path'], config, ts="naive")
-    zt_dict_pts, _ = get_tent_logits_imagenet_c(large_name, distortion, [severity], config['data_path'], config, ts="pts")
+    zt_dict_ts, _ = get_tent_logits_imagenet_c(large_name, distortion, severity, config['data_path'], config, ts="naive")
+    zt_dict_pts, _ = get_tent_logits_imagenet_c(large_name, distortion, severity, config['data_path'], config, ts="pts")
 
     
     zt_raw = zt_dict_raw[severity]

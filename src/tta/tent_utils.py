@@ -12,28 +12,29 @@ from src.calibration.pts import PTSWrapper, get_pts_model
 from src.models.model_loader import get_model
 from src.models.inference import get_model_logits_imagenet_c
 
-def setup_tent2(model, cfg):
-    """Set up tent adaptation.
+# def setup_tent2(model, cfg):
+#     """Set up tent adaptation.
 
-    Configure the model for training + feature modulation by batch statistics,
-    collect the parameters for feature modulation by gradient optimization,
-    set up the optimizer, and then tent the model.
-    """
+#     Configure the model for training + feature modulation by batch statistics,
+#     collect the parameters for feature modulation by gradient optimization,
+#     set up the optimizer, and then tent the model.
+#     """
 
-    model = tent.configure_model(model)
-    params, param_names = tent.collect_params(model)
+#     model = tent.configure_model(model)
+#     params, param_names = tent.collect_params(model)
 
-    optimizer = setup_optimizer(params, cfg)
+#     optimizer = setup_optimizer(params, cfg)
     
-    tent_model = tent.Tent(model, optimizer,
-                           steps=int(cfg["OPTIM"]["STEPS"]),
-                           episodic=cfg["MODEL"]["EPISODIC"])
-    # print(f"model for adaptation: {model}")
-    log_event(f"Params for adaptation: {param_names}")
-    log_event(f"Number of params: {len(param_names)}")
-    log_event(f"Optimizer for adaptation: {optimizer}")
+#     tent_model = tent.Tent(model, optimizer,
+#                            steps=int(cfg["OPTIM"]["STEPS"]),
+#                            episodic=cfg["MODEL"]["EPISODIC"])
+#     # print(f"model for adaptation: {model}")
+#     log_event(f"Params for adaptation: {param_names}")
+#     log_event(f"Number of params: {len(param_names)}")
+#     log_event(f"Optimizer for adaptation: {optimizer}")
 
-    return tent_model
+#     return tent_model
+
 def setup_tent(model, cfg):
     """Set up tent adaptation.
 
@@ -73,33 +74,6 @@ def setup_tent(model, cfg):
     
     log_event(f"Params for adaptation: {len(param_names)}")
     return tent_model
-
-
-def setup_optimizer2(params, cfg):
-    """Set up optimizer for tent adaptation.
-
-    Tent needs an optimizer for test-time entropy minimization.
-    In principle, tent could make use of any gradient optimizer.
-    In practice, we advise choosing Adam or SGD+momentum.
-    For optimization settings, we advise to use the settings from the end of
-    trainig, if known, or start with a low learning rate (like 0.001) if not.
-
-    For best results, try tuning the learning rate and batch size.
-    """
-    if cfg["OPTIM"]["METHOD"] == 'Adam':
-        return optim.Adam(params,
-                    lr=float(cfg["OPTIM"]["LR"]),
-                    betas=(float(cfg["OPTIM"]["BETA"]), 0.999),
-                    weight_decay=float(cfg["OPTIM"]["WD"]))
-    elif cfg["OPTIM"]["METHOD"] == 'SGD':
-        return optim.SGD(params,
-                   lr=cfg["OPTIM"]["LR"],
-                   momentum=cfg["OPTIM"]["MOMENTUM"],
-                   dampening=cfg["OPTIM"]["DAMPENING"],
-                   weight_decay=cfg["OPTIM"]["WD"],
-                   nesterov=cfg["OPTIM"]["NESTEROV"])
-    else:
-        raise NotImplementedError
 
 def setup_optimizer(params, cfg):
     """Set up optimizer for tent adaptation.
