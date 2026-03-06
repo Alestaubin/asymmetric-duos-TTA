@@ -19,7 +19,7 @@ env/
 .DS_Store
 
 # SLURM outputs
-*.out
+# *.out
 
 # sh files
 *.sh

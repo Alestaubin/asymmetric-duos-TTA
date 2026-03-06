@@ -1,0 +1,44 @@
+[2026-03-06 02:01:54] Running experiment with large_model=convnext_base, small_model=resnet34, lr=0.0001
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_83eed0d306232e5762fb51c7955ca23b9ca8cb9dfbf6a98a5a1f2427e5bc988f.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_d43f808e444070b0b723eafc86a8a19b9c5264ed311d5bab433b333a02969bb1.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_229bfab5ce8509f8e305b43e4e36b6a244ba530c7b34ee82bf62eb50228b7603.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_7624e6d9b2cb05f35c1d1ae2deabaa96407c237d164cf2910c30245c34ab8de2.pkl
+[2026-03-06 02:02:02] Epoch 0 | train loss: 0.0002965347238570101 | val loss: 0.0004517122288234532
+[2026-03-06 02:02:06] Epoch 1 | train loss: 0.0002942575481084262 | val loss: 0.0004299730062484741
+[2026-03-06 02:02:10] Epoch 2 | train loss: 0.00029384333690734036 | val loss: 0.000296447251457721
+[2026-03-06 02:02:13] Epoch 3 | train loss: 0.00029517156492246276 | val loss: 0.0003764157590921968
+[2026-03-06 02:02:17] Epoch 4 | train loss: 0.0002947374837552629 | val loss: 0.0002471659972798079
+[2026-03-06 02:02:20] Epoch 5 | train loss: 0.0002940254492447905 | val loss: 0.00031399400904774666
+[2026-03-06 02:02:24] Epoch 6 | train loss: 0.00029367587848800047 | val loss: 0.0001959154469659552
+[2026-03-06 02:02:28] Epoch 7 | train loss: 0.00029349559606551325 | val loss: 0.0002915853983722627
+[2026-03-06 02:02:32] Epoch 8 | train loss: 0.0002939543708565291 | val loss: 0.00027870453777723014
+[2026-03-06 02:02:35] Epoch 9 | train loss: 0.0002939135399490845 | val loss: 0.0003737785737030208
+[2026-03-06 02:02:39] Epoch 10 | train loss: 0.00029278876374850567 | val loss: 0.000290068332105875
+[2026-03-06 02:02:43] Epoch 11 | train loss: 0.0002937054307778 | val loss: 0.00026534905191510916
+[2026-03-06 02:02:46] Epoch 12 | train loss: 0.0002930061208246389 | val loss: 0.0003147610113956034
+[2026-03-06 02:02:50] Epoch 13 | train loss: 0.0002927529777994546 | val loss: 0.00033953937236219645
+[2026-03-06 02:02:50] Early stopping triggered at epoch 13. Best Val Loss: 0.000196
+Save PTS model to:  checkpoints/PTS/20260306_020250/pts_model.pth
+Epoch loss plot saved to plots/pts_testing/joint_pts_mse_20260306_020250.png
+[2026-03-06 02:03:13] Metrics on clean data for JointPTS mse: {'ece': 0.1378114150046557, 'nll': 1.3427522181795322, 'accuracy': 0.70522, 'f1': 0.701907502409204, 'brier': 0.0004274548012240105}
+[2026-03-06 02:03:36] Metrics on OOD data for JointPTS mse: {'ece': 0.04904956777840853, 'nll': 3.1697617897811123, 'accuracy': 0.35854, 'f1': 0.3799644260151308, 'brier': 0.0007718497393625326}
+[2026-03-06 02:03:40] Epoch 0 | train loss: 0.8831706682142739 | val loss: 0.7299904823303223
+[2026-03-06 02:03:43] Epoch 1 | train loss: 0.8695251374198987 | val loss: 0.8066654205322266
+[2026-03-06 02:03:47] Epoch 2 | train loss: 0.8686785141880901 | val loss: 0.9548786282539368
+[2026-03-06 02:03:50] Epoch 3 | train loss: 0.8683762848377228 | val loss: 1.2646032571792603
+[2026-03-06 02:03:54] Epoch 4 | train loss: 0.8685395823309596 | val loss: 0.6036912798881531
+[2026-03-06 02:03:58] Epoch 5 | train loss: 0.8683172485318047 | val loss: 0.9139305949211121
+[2026-03-06 02:04:01] Epoch 6 | train loss: 0.8670269363223554 | val loss: 1.1553088426589966
+[2026-03-06 02:04:04] Epoch 7 | train loss: 0.8657769852172071 | val loss: 0.5173918604850769
+[2026-03-06 02:04:08] Epoch 8 | train loss: 0.8682574761180452 | val loss: 1.0130019187927246
+[2026-03-06 02:04:11] Epoch 9 | train loss: 0.8682339817952043 | val loss: 1.012681484222412
+[2026-03-06 02:04:15] Epoch 10 | train loss: 0.8654005020952072 | val loss: 0.8530999422073364
+[2026-03-06 02:04:18] Epoch 11 | train loss: 0.8655310251271001 | val loss: 0.8982330560684204
+[2026-03-06 02:04:22] Epoch 12 | train loss: 0.8661256621059138 | val loss: 0.7595345377922058
+[2026-03-06 02:04:25] Epoch 13 | train loss: 0.864676983306964 | val loss: 1.0275007486343384
+[2026-03-06 02:04:29] Epoch 14 | train loss: 0.8650694081006339 | val loss: 0.5746108293533325
+[2026-03-06 02:04:29] Early stopping triggered at epoch 14. Best Val Loss: 0.517392
+Save PTS model to:  checkpoints/PTS/20260306_020429/pts_model.pth
+Epoch loss plot saved to plots/pts_testing/joint_pts_nll_20260306_020429.png
+[2026-03-06 02:04:51] Metrics on clean data for JointPTS nll: {'ece': 0.3645049309541285, 'nll': 1.7443402441648572, 'accuracy': 0.7171, 'f1': 0.7137667374908058, 'brier': 0.0005565506660772813}
+[2026-03-06 02:05:14] Metrics on OOD data for JointPTS nll: {'ece': 0.21293423021614555, 'nll': 3.3621039367361334, 'accuracy': 0.38486, 'f1': 0.40633578253769825, 'brier': 0.0008289009627540301}

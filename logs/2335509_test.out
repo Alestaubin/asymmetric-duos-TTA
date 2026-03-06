@@ -1,0 +1,5 @@
+[2026-03-06 02:14:07] Running experiment with large_model=convnext_base, small_model=resnet34, lr=0.0001, top_k_logits=1000, weight_decay=1e-4, patience=10
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_83eed0d306232e5762fb51c7955ca23b9ca8cb9dfbf6a98a5a1f2427e5bc988f.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_d43f808e444070b0b723eafc86a8a19b9c5264ed311d5bab433b333a02969bb1.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_229bfab5ce8509f8e305b43e4e36b6a244ba530c7b34ee82bf62eb50228b7603.pkl
+Loading cached result for get_model_logits_imagenet_c from data/cache/pickles/logits_cache/get_model_logits_imagenet_c_7624e6d9b2cb05f35c1d1ae2deabaa96407c237d164cf2910c30245c34ab8de2.pkl
