@@ -21,6 +21,10 @@ def main():
     epochs = config['PTS']['JOINT']['epochs']
     bs = config['PTS']['JOINT']['batch_size']
     num_workers = config['PTS']['JOINT']['num_workers']
+    top_k_logits = config['PTS']['JOINT']['top_k_logits']
+    weight_decay = config['PTS']['JOINT']['weight_decay']
+    patience = config['PTS']['JOINT']['patience']
+    log_event(f"Running experiment with large_model={large_model}, small_model={small_model}, lr={lr}, top_k_logits={top_k_logits}, weight_decay={weight_decay}, patience={patience}")
     zt_large, labels = get_model_logits_imagenet_c(
                                                 model_name=large_model, 
                                                 distortion="gaussian_noise", 
@@ -54,42 +58,42 @@ def main():
                                             batch_size=config['batch_size'], 
                                             num_workers=config['workers'], 
                                             )
+    Tl_joint, Ts_joint = jointly_calibrate_temperature(
+        zt_large_clean, zt_small_clean, labels_clean
+    )
+
+    clean_duo_logits = (zt_large_clean / Tl_joint + zt_small_clean / Ts_joint) / 2
+    clean_duo_probs = F.softmax(clean_duo_logits, dim=1).numpy()
+    clean_metrics = get_metrics_dict(clean_duo_probs, labels_clean)
+    log_event(f"Metrics on clean data for Joint Temperature Scaling: {clean_metrics}")
+
+    shifted_duo_logits = (zt_large / Tl_joint + zt_small / Ts_joint) / 2
+    shifted_duo_probs = F.softmax(shifted_duo_logits, dim=1).numpy()
+    shifted_metrics = get_metrics_dict(shifted_duo_probs, labels)
+    log_event(f"Metrics on OOD data for Joint Temperature Scaling: {shifted_metrics}")
+
     for loss_fn in ["mse", "nll"]:
         calibrator = JointPTS_calibrator(epochs=epochs,
                                         lr=lr,
-                                        weight_decay=0.0,
+                                        weight_decay=weight_decay,
                                         batch_size=bs,
                                         nlayers=2,
                                         n_nodes=256,
                                         length_logits=zt_small.shape[1],
-                                        top_k_logits=10,
+                                        top_k_logits=top_k_logits,
                                         loss_fn=loss_fn)
 
-        calibrator.tune(logits_s=zt_small_clean, logits_l=zt_large_clean, labels=labels_clean)
+        calibrator.tune(logits_s=zt_small_clean, logits_l=zt_large_clean, labels=labels_clean, patience=patience)
+        calibrator.save(f"checkpoints/PTS/{get_time_str()}")
         save_path = os.path.join("plots/pts_testing", f"joint_pts_{loss_fn}_{get_time_str()}.png")
         calibrator.plot_epoch_losses(save_path=save_path)
+        clean_duo_probs = calibrator.calibrate(logits_s=zt_small_clean, logits_l=zt_large_clean)
+        clean_metrics = get_metrics_dict(clean_duo_probs, labels_clean)
+        log_event(f"Metrics on clean data for JointPTS {loss_fn}: {clean_metrics}")
+
         duo_probs = calibrator.calibrate(logits_s=zt_small, logits_l=zt_large)
         metrics = get_metrics_dict(duo_probs, labels)
-        log_event(f"Metrics for JointPTS {loss_fn}: {metrics}")
-    # for loss_fn in ["mse", "nll"]:
-    #     save_path = os.path.join("plots/pts_testing", f"joint_pts_{loss_fn}_{get_time_str()}.png")
-    #     pts_model, loss = get_joint_pts_model(
-    #             small_model=small_model,
-    #             large_model=large_model,
-    #             data_path=data_path,
-    #             val_path=None,
-    #             epochs=epochs, 
-    #             lr=lr,
-    #             batch_size=bs,
-    #             num_workers=num_workers,
-    #             loss_type=loss_fn,
-    #             patience=None,
-    #             plot_save_path=save_path
-    #         )
-    #     log_event(f"Trained JointPTS with loss_fn={loss_fn}. Validation Loss: {loss:.6f}")
-    #     zd_pts = get_joint_pts_logits(pts_model, zt_large, zt_small)
-    #     metrics = get_metrics_dict(F.softmax(zd_pts, dim=-1), labels)
-    #     log_event(f"Metrics for JointPTS with loss_fn={loss_fn}: {metrics}")
+        log_event(f"Metrics on OOD data for JointPTS {loss_fn}: {metrics}")
 
 if __name__ == "__main__":
     main()

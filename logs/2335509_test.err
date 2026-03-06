@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "/project/6104790/alxstaub/asymmetric-duos-tta/test/test_pts.py", line 85, in <module>
+    main()
+  File "/project/6104790/alxstaub/asymmetric-duos-tta/test/test_pts.py", line 62, in main
+    calibrator = JointPTS_calibrator(epochs=epochs,
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/project/6104790/alxstaub/asymmetric-duos-tta/src/calibration/pts_2.py", line 222, in __init__
+    self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/alxstaub/py38/lib/python3.11/site-packages/torch/optim/adamw.py", line 37, in __init__
+    super().__init__(
+  File "/home/alxstaub/py38/lib/python3.11/site-packages/torch/optim/adam.py", line 65, in __init__
+    if not 0.0 <= weight_decay:
+           ^^^^^^^^^^^^^^^^^^^
+TypeError: '<=' not supported between instances of 'float' and 'str'

@@ -10,6 +10,7 @@ import copy
 from src.utils.plot_utils import plot_epoch_losses, get_time_str
 from src.utils.log_utils import log_event
 import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 class PTSNetwork(nn.Module):
@@ -218,17 +219,17 @@ class JointPTS_calibrator():
         self.model = JointPTSNetwork(top_k_logits, nlayers, n_nodes).to(self.device)
         
         # L2 regularization is handled natively by PyTorch's weight_decay parameter in the optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         if self.loss_fn == "mse":
             self.criterion = nn.MSELoss()
         elif self.loss_fn == "nll":
             # CrossEntropyLoss expects raw logits and 1D integer targets
             # It applies LogSoftmax and NLL internally for stability
-            loss_fn = nn.CrossEntropyLoss()
+            self.criterion = nn.CrossEntropyLoss()
         else:
             raise ValueError("Unsupported loss function. Choose 'mse' or 'nll'.")  
 
-    def tune(self, logits_s, logits_l, labels, clip=1e2):
+    def tune(self, logits_s, logits_l, labels, clip=1e2, patience=7):
         """Tune PTS model"""
         # Convert numpy arrays to tensors if necessary
         if not torch.is_tensor(logits_s):
@@ -248,10 +249,6 @@ class JointPTS_calibrator():
         # Clip logits
         logits_s = torch.clamp(logits_s, min=-clip, max=clip)
         logits_l = torch.clamp(logits_l, min=-clip, max=clip)
-
-        # Create DataLoader
-        # dataset = TensorDataset(logits_s, logits_l, labels)
-        # loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
         
         full_dataset = TensorDataset(logits_l, logits_s, labels)
         train_size = int(0.8 * len(full_dataset))
@@ -264,6 +261,11 @@ class JointPTS_calibrator():
 
         self.epoch_losses_train = []
         self.epoch_losses_val = []
+
+        # Early Stopping Variables
+        best_loss = float('inf')
+        best_model_state = None
+        epochs_no_improve = 0
 
         for epoch in tqdm(range(self.epochs), desc="Training Epochs"):            
             epoch_loss = 0
@@ -307,8 +309,21 @@ class JointPTS_calibrator():
 
             log_event(f"Epoch {epoch} | train loss: {avg_loss_train} | val loss: {avg_loss_val}")
 
-        self.epoch_losses_train.append(avg_loss_train)
-        self.epoch_losses_val.append(avg_loss_val)
+            self.epoch_losses_train.append(avg_loss_train)
+            self.epoch_losses_val.append(avg_loss_val)
+
+            # --- EARLY STOPPING CHECK ---
+            if patience is not None:
+                if avg_loss_val < best_loss:
+                    best_loss = avg_loss_val
+                    best_model_state = copy.deepcopy(self.model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+                    
+                if epochs_no_improve >= patience:
+                    log_event(f"Early stopping triggered at epoch {epoch}. Best Val Loss: {best_loss:.6f}")
+                    break
 
     def plot_epoch_losses(self, save_path=None):
         """
@@ -351,7 +366,8 @@ class JointPTS_calibrator():
 
         self.model.eval()
         with torch.no_grad():
-            calibrated_probs = self.model(logits_s, logits_l)
+            calibrated_logits = self.model(logits_s, logits_l)
+            calibrated_probs = F.softmax(calibrated_logits, dim=-1)
 
         return calibrated_probs.cpu().numpy()
 

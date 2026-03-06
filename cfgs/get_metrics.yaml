@@ -35,6 +35,9 @@ PTS:
     epochs: 50
     batch_size: 128
     num_workers: 8
+    top_k_logits: 1000
+    weight_decay: 0.0001
+    patience: 10
   SINGLE:
     lr: 0.0001
     epochs: 50

@@ -42,7 +42,7 @@ def main():
     # ---------------------------------------------------------
     # Obtain validation logits for temperature scaling
     # ---------------------------------------------------------
-
+    # TODO:there is no val/test split for imagenet, only val, so split="val" or "test" returns the same data, and doesn't make sense
     zt_val_large, labels = get_model_logits_imagenet_c(
                                                 model_name=large_name, 
                                                 distortion="none", 

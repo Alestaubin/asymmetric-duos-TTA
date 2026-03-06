@@ -27,7 +27,6 @@ env/
 
 checkpoints
 evaluation/
-logs
 datasets
 data
 slurm-scripts
