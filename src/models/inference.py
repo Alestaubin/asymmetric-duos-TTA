@@ -35,7 +35,8 @@ def get_model_logits_imagenet_c(model_name, distortion, severity, data_path, bat
         root_path = data_path
     else:
         root_path = os.path.join(data_path, distortion, str(severity))
-        
+    
+    print(f"Loading data from: {root_path}")
     dataset = dset.ImageFolder(root=root_path, transform=preprocess)
     
     # pin_memory should be True only for GPU (CUDA or MPS) to speed up transfer

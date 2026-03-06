@@ -65,16 +65,16 @@ def main():
     # ---------------------------------------------------------
 
     # PTS Models
-    large_pts_model = get_pts_model(model_name=large_name, 
-                                    data_path=config['val_path'], 
-                                    epochs=config['PTS']['SINGLE']['epochs'], 
-                                    lr=config['PTS']['SINGLE']['lr'], 
-                                    batch_size=config['PTS']['SINGLE']['batch_size'])
-    small_pts_model = get_pts_model(model_name=small_name, 
-                                    data_path=config['val_path'], 
-                                    epochs=config['PTS']['SINGLE']['epochs'], 
-                                    lr=config['PTS']['SINGLE']['lr'], 
-                                    batch_size=config['PTS']['SINGLE']['batch_size'])
+    # large_pts_model = get_pts_model(model_name=large_name, 
+    #                                 data_path=config['val_path'], 
+    #                                 epochs=config['PTS']['SINGLE']['epochs'], 
+    #                                 lr=config['PTS']['SINGLE']['lr'], 
+    #                                 batch_size=config['PTS']['SINGLE']['batch_size'])
+    # small_pts_model = get_pts_model(model_name=small_name, 
+    #                                 data_path=config['val_path'], 
+    #                                 epochs=config['PTS']['SINGLE']['epochs'], 
+    #                                 lr=config['PTS']['SINGLE']['lr'], 
+    #                                 batch_size=config['PTS']['SINGLE']['batch_size'])
     joint_pts_model = get_joint_pts_model(small_model=small_name, 
                                         large_model=large_name, 
                                         data_path=config['val_path'], 
@@ -82,17 +82,17 @@ def main():
                                         lr=config['PTS']['JOINT']['lr'], 
                                         batch_size=config['PTS']['JOINT']['batch_size'])
     # Naive TS temperatures
-    t_large_fixed = calibrate_temperature(
-        zt_val_large, labels
-    )
-    t_small_fixed = calibrate_temperature(
-        zt_val_small, labels
-    )
+    # t_large_fixed = calibrate_temperature(
+    #     zt_val_large, labels
+    # )
+    # t_small_fixed = calibrate_temperature(
+    #     zt_val_small, labels
+    # )
     Tl_joint, Ts_joint = jointly_calibrate_temperature(
         zt_val_large, zt_val_small, labels
     )
-    log_event(f"Naive TS -> T_large: {t_large_fixed:.4f} | T_small: {t_small_fixed:.4f}")
-    log_event(f"Naive Joint TS -> Tl_joint: {Tl_joint:.4f} | Ts_joint: {Ts_joint:.4f}")
+    # log_event(f"Naive TS -> T_large: {t_large_fixed:.4f} | T_small: {t_small_fixed:.4f}")
+    # log_event(f"Naive Joint TS -> Tl_joint: {Tl_joint:.4f} | Ts_joint: {Ts_joint:.4f}")
 
 
     # ---------------------------------------------------------
@@ -118,18 +118,18 @@ def main():
         num_workers=config['workers'],
         split="test"
     )
-    tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, "none", [0], config['test_path'], config, ts=None
-    )
-    tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], config, ts="naive"
-    )
-    tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
-        large_name, "none", [0], config['test_path'], config, ts="pts"
-    )
-    zt = tent_logits_dict[0]
-    zt_ts = tent_logits_dict_ts[0]
-    zt_pts = tent_logits_dict_pts[0]
+    # tent_logits_dict, _ = get_tent_logits_imagenet_c(
+    #         large_name, "none", [0], config['test_path'], config, ts=None
+    # )
+    # tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
+    #     large_name, "none", [0], config['test_path'], config, ts="naive"
+    # )
+    # tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
+    #     large_name, "none", [0], config['test_path'], config, ts="pts"
+    # )
+    # zt = tent_logits_dict[0]
+    # zt_ts = tent_logits_dict_ts[0]
+    # zt_pts = tent_logits_dict_pts[0]
 
 
     # ---------------------------------------------------------
@@ -137,19 +137,19 @@ def main():
     # ---------------------------------------------------------
 
     log_event(">>> Calibrating Clean Test Set Logits with PTS models...")
-    zl_clean_pts = get_pts_logits(large_pts_model, zl_clean)
-    zs_clean_pts = get_pts_logits(small_pts_model, zs_clean)
+    # zl_clean_pts = get_pts_logits(large_pts_model, zl_clean)
+    # zs_clean_pts = get_pts_logits(small_pts_model, zs_clean)
     zd_clean_pts = get_joint_pts_logits(joint_pts_model, zl_clean, zs_clean)
     
     variants_clean = {
-                "f_large": zl, "f_small": zs, 
-                "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
-                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
-                "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
-                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
-                "tent_f_large": zt,
-                "tent_f_large_TS_naive": zt_ts,
-                "tent_f_large_TS_pts": zt_pts,
+                "f_large": zl_clean, "f_small": zs_clean, 
+                # "f_large_TS": zl_clean / t_large_fixed, "f_small_TS": zs_clean / t_small_fixed,
+                # "f_large_PTS": get_pts_logits(large_pts_model, zl_clean), "f_small_PTS": get_pts_logits(small_pts_model, zs_clean),
+                "Duo_Joint_TS": (zl_clean / Tl_joint + zs_clean / Ts_joint) / 2,
+                "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl_clean, zs_clean),
+                # "tent_f_large": zt,
+                # "tent_f_large_TS_naive": zt_ts,
+                # "tent_f_large_TS_pts": zt_pts,
     }
 
     for name, logits in variants_clean.items():
@@ -178,34 +178,34 @@ def main():
     for d_name in distortions:
         log_event(f"Distortion: {d_name}")
         
-        tent_logits_dict, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts=None
-        )
-        tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts="naive"
-        )
-        tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
-            large_name, d_name, severities, config['data_path'], config, ts="pts"
-        )
+        # tent_logits_dict, _ = get_tent_logits_imagenet_c(
+        #     large_name, d_name, severities, config['data_path'], config, ts=None
+        # )
+        # tent_logits_dict_ts, _ = get_tent_logits_imagenet_c(
+        #     large_name, d_name, severities, config['data_path'], config, ts="naive"
+        # )
+        # tent_logits_dict_pts, _ = get_tent_logits_imagenet_c(
+        #     large_name, d_name, severities, config['data_path'], config, ts="pts"
+        # )
 
         for sev in severities:
             zl, labels = get_model_logits_imagenet_c(large_name, d_name, sev, config['data_path'], 
                                                    batch_size=config['batch_size'], num_workers=config['workers'])
             zs, _      = get_model_logits_imagenet_c(small_name, d_name, sev, config['data_path'], 
                                                    batch_size=config['batch_size'], num_workers=config['workers'])
-            zt = tent_logits_dict[sev]
-            zt_ts = tent_logits_dict_ts[sev]
-            zt_pts = tent_logits_dict_pts[sev]
+            # zt = tent_logits_dict[sev]
+            # zt_ts = tent_logits_dict_ts[sev]
+            # zt_pts = tent_logits_dict_pts[sev]
 
             variants = {
                 "f_large": zl, "f_small": zs, 
-                "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
-                "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
+                # "f_large_TS": zl / t_large_fixed, "f_small_TS": zs / t_small_fixed,
+                # "f_large_PTS": get_pts_logits(large_pts_model, zl), "f_small_PTS": get_pts_logits(small_pts_model, zs),
                 "Duo_Joint_TS": (zl / Tl_joint + zs / Ts_joint) / 2,
                 "Duo_Joint_PTS": get_joint_pts_logits(joint_pts_model, zl, zs),
-                "tent_f_large": zt,
-                "tent_f_large_TS_naive": zt_ts,
-                "tent_f_large_TS_pts": zt_pts,
+                # "tent_f_large": zt,
+                # "tent_f_large_TS_naive": zt_ts,
+                # "tent_f_large_TS_pts": zt_pts,
             }
 
             for name, logits in variants.items():

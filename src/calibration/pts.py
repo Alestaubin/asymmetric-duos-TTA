@@ -74,7 +74,7 @@ class PTSWrapper(nn.Module):
         return scaled_logits
 
 @pickle_cache("joint_pts_model_cache")
-def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128):
+def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4, batch_size=128, loss="squared_error"):
     """
     Trains JointPTS using the full logit tuples and Squared Error Loss.
     """
@@ -94,6 +94,7 @@ def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4,
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     model = JointPTS(num_classes=num_classes).to(device)
+    #TODO: adamW 
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
     
     print(f"--- Training Full Joint PTS | Input Dim: {num_classes*2} ---")
@@ -115,7 +116,11 @@ def get_joint_pts_model(small_model, large_model, data_path, epochs=50, lr=1e-4,
             
             # Squared Error Loss L_theta
             # L = 1/N * sum_n( sum_c( (I_nc - sigma_SM_nc)^2 ) )
-            loss = torch.sum((b_labels - probs)**2, dim=1).mean()
+            # TODO: NLL loss instead of squared error?
+            if loss == "squared_error":
+                loss = torch.sum((b_labels - probs)**2, dim=1).mean()
+            elif loss == "nll":
+                loss = -torch.mean(torch.sum(b_labels * torch.log(probs), dim=1))
             
             loss.backward()
             optimizer.step()
